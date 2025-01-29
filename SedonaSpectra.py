@@ -21,6 +21,7 @@ class SedonaModel:
     def __init__(self,filename=None):
         c = 3E18 ##AA/s
         self.name = filename
+        self.file = self.name[self.name.rfind('/')+1:]
         self.curves = {}
         #self.angular_indices = {}
         with h5py.File(filename, "r") as f:
@@ -108,9 +109,10 @@ class SedonaModel:
             if max(spec) == 0:
                 return 45
             Trans = np.zeros(len(self.AA))#np.where((self.AA >= filt.AA.min())&(self.AA <= filt.AA.max()),,0)#np.zeros(len(self.AA))
-            for i in range(len(Trans)):
-                if self.AA[i] >= filt.AA.min() and self.AA[i] <= filt.AA.max():
-                    Trans[i] = filt.Trans[np.searchsorted(filt.AA,self.AA[i])]
+            inds = np.searchsorted(filt.AA,self.AA)
+            inds = np.where(inds>=len(filt.AA),0,inds)
+            Trans = filt.Trans[inds]
+            Trans = np.where((self.AA>=filt.AA.min())&(self.AA<=filt.AA.max()),Trans,0)
             filtered = Trans*spec
             if filt.counter == 'energy':
                 numerator = integrate.trapezoid(filtered,self.AA) #technically should be negative, but -1/-1 = 1
@@ -237,3 +239,17 @@ class SedonaModel:
         weights = (1/0.5)*(n_parts[is_finite&bools]/10)**0.5 #reflects that the magnitude error is ~0.75 when there are 10 particles, and the error scales 1/sqrt(N)
         fit = splrep(self.time[is_finite&bools],curve,s=len(curve),w=weights)#*sum(weights)
         return BSpline(*fit)(self.time), bools
+    def saveCurves(self,filepath):
+        with h5py.File(filepath,'a') as f:
+            if 'time' not in list(f.keys()):
+                f.create_dataset('time',data=self.time,dtype='f',shape=len(self.time))
+            if self.file not in list(f.keys()):
+                f.create_group(self.file)
+            for q in self.curves.keys():
+                if q not in list(f[self.file].keys()):
+                    f.create_dataset(self.file+'/'+q,data=self.curves[q],dtype='f',shape=len(self.time))
+    def loadCurves(self,filepath):
+        with h5py.File(filepath,'r') as f:
+            if self.file in list(f.keys()):
+                for q in list(f[self.file].keys()):
+                    self.curves[q] = np.array(f[self.file+'/'+q])
