@@ -44,15 +44,17 @@ class SedonaModel:
         if angle_ind == None:
             angle_ind = self.getAngleInd(angle=angle)
         #print(angle_ind)
-        diff = list(np.abs(self.time-time))
-        minimum = min(diff)
-        ind = diff.index(minimum)
-        if minimum > 0.5:
-            print('WARNING: NO SPECTRUM TIMES WITHIN 0.5 DAYS OF SELECTED TIME; CHOOSING CLOSEST at t='+str(self.time[ind]) + ' days')
+        time = np.array(time)
+        timeR = time.reshape(-1,1)
+        diff = np.abs(self.time-timeR).argmin(axis=1)
+        #if len(diff) == 1:
+        #    diff = diff[0]
+        if ((self.time[diff] - time) > 0.5).any():
+            print('WARNING: NO SPECTRUM TIMES WITHIN 0.5 DAYS OF SELECTED TIME(S); CHECK TIME INPUT')
         if mode == 'lam':
-            return self.Llam[ind,:,angle_ind]
+            return self.Llam[diff,:,angle_ind]
         if mode == 'nu':
-            return self.Lnu[ind,:,angle_ind]
+            return self.Lnu[diff,:,angle_ind]
     def getLum(self,time=None,angle=0,angle_ind=None):
         if angle_ind==None:
             angle_ind = self.getAngleInd(angle=angle)
@@ -63,9 +65,9 @@ class SedonaModel:
             angle_ind = self.getAngleInd(angle=angle)
         costheta = self.mu[angle_ind]
         if not 'Bolometric'+str(costheta) in self.curves.keys():
-            lums = np.zeros(len(self.time))
-            for i in range(len(self.time)):
-                lums[i] = self.getLum(self.time[i],angle_ind=angle_ind)
+            lums = self.getLum(self.time,angle_ind=angle_ind)#np.zeros(len(self.time))
+            #for i in range(len(self.time)):
+            #    lums[i] = self.getLum(self.time[i],angle_ind=angle_ind)
             self.curves['Bolometric'+str(costheta)] = lums
             return lums
         else:
@@ -106,8 +108,6 @@ class SedonaModel:
         if not (filt.name+str(costheta) in self.curves.keys()):
             spec = self.getSpec(time,'lam',angle_ind=angle_ind)/(4*np.pi*dist**2)
             #print(max(spec))
-            if max(spec) == 0:
-                return 45
             Trans = np.zeros(len(self.AA))#np.where((self.AA >= filt.AA.min())&(self.AA <= filt.AA.max()),,0)#np.zeros(len(self.AA))
             inds = np.searchsorted(filt.AA,self.AA)
             inds = np.where(inds>=len(filt.AA),0,inds)
@@ -119,15 +119,17 @@ class SedonaModel:
                 denominator = integrate.trapezoid(Trans,self.AA)
                 answer = numerator/denominator
                 #print(numerator,denominator)
-                return -2.5*np.log10(answer/filt.zeroPoint)
+                return np.where(answer!=0,-2.5*np.log10(answer/filt.zeroPoint),45)
+                
             elif filt.counter == 'photon':
                 numerator = integrate.trapezoid(filtered*self.AA,self.AA) #technically should be negative, but -1/-1 = 1
                 denominator = integrate.trapezoid(Trans*self.AA,self.AA)
                 answer = numerator/denominator
                 #print(numerator,denominator)
-                return -2.5*np.log10(answer/filt.zeroPoint)
+                return np.where(answer!=0,-2.5*np.log10(answer/filt.zeroPoint),45)
             else:
                 print(filt.counter + " is not a valid counter, please choose energy or photon")
+                
         else:
             ind = np.searchsorted(self.time,time)
             return self.curves[filt.name+str(costheta)][ind] + 5*np.log10(dist/(1E-6*10*3.086E24))
@@ -136,9 +138,9 @@ class SedonaModel:
             angle_ind = self.getAngleInd(angle=angle)
         costheta = self.mu[angle_ind]
         if not (filt.name+str(costheta) in self.curves.keys()):
-            mags = np.zeros(len(self.time))
-            for i in range(len(self.time)):
-                mags[i] = self.getMag(self.time[i],filt,dist,angle_ind=angle_ind)
+            mags = self.getMag(self.time,filt,dist,angle_ind=angle_ind)#np.zeros(len(self.time))
+            #for i in range(len(self.time)):
+            #    mags[i] = self.getMag(self.time[i],filt,dist,angle_ind=angle_ind)
             self.curves[filt.name+str(costheta)] = mags - 5*np.log10(dist/(1E-6*10*3.086E24)) #Give distance in cm. Stores absolute magnitudes
             return mags
         else:
