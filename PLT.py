@@ -163,6 +163,22 @@ class PLT:
         plt.title('Gas Temperature',fontsize=18)
         plt.colorbar(sm,location='right',label=r'log$_{10}$(Temperature/K)')
         
+    def plotGeneric(self,Z,log=False,colormin=0,colormax=10,label='Unlabeled'):
+        plt.figure(figsize=(16,12))
+        currentData = Z
+        if log:
+            currentData = np.log10(currentData)
+    
+        sm = plt.cm.ScalarMappable(cmap=plt.cm.coolwarm,norm=plt.Normalize(vmin=colormin,
+                                                                   vmax=colormax))
+        for q in range(len(self.times)):
+            plt.scatter(self.times[q]*np.ones(self.n_zones),np.linspace(0,self.n_zones-1,self.n_zones),color=sm.to_rgba(currentData[:,q]),s=65,marker='s')
+
+        plt.ylim(-0.1,self.n_zones+0.1)
+        plt.ylabel('Zone Number',fontsize=14)
+        #plt.title('Gas Temperature',fontsize=18)
+        plt.colorbar(sm,location='right',label=label)
+        
     def plotPhotosphere(self,lamnu,unit):
 
         currentData = self.calcOpticalDepth(lamnu=lamnu,unit=unit)
