@@ -115,4 +115,57 @@ class PLT:
         indices = self.n_zones-1-np.argmax(opticalDepths>=1,axis=0)
         fixed_indices = np.where(indices==(self.n_zones-1),0,indices)
         return fixed_indices
+        
+    def plotIonStageAtom(self,Z=60,ion=0):
+
+        plt.figure(figsize=(16,12))
+        sm = plt.cm.ScalarMappable(cmap=plt.cm.coolwarm,norm=plt.Normalize(vmin=-5,
+                                                                vmax=0))
+        ky = 'Z_'+str(Z)
+
+        currentData = np.log10(self.atoms[ky][:,:,ion])
+        currentData = np.where(currentData==np.nan,-5,currentData)
+        for q in range(len(self.times)):
+            plt.scatter(self.times[q]*np.ones(self.n_zones),np.linspace(0,self.n_zones-1,self.n_zones),color=sm.to_rgba(currentData[:,q]),s=65,marker='s')
+
+        plt.ylim(-0.1,self.n_zones+0.1)
+
+        plt.ylabel('Zone Number',fontsize=14)
+        plt.title('Ionization Stage '+ str(ion) + ' for Z = '+ky[-2:],fontsize=18)
+        plt.colorbar(sm,location='right',label=r'log$_{10}$(Ion Fraction)')
+        
+    def plotRho(self):
+
+        plt.figure(figsize=(16,12))
+        currentData = np.log10(self.rho)
+        sm = plt.cm.ScalarMappable(cmap=plt.cm.coolwarm,norm=plt.Normalize(vmin=min(np.min(currentData),-20),
+                                                                            vmax=max(np.max(currentData),-5)))
+        for q in range(len(self.times)):
+            plt.scatter(self.times[q]*np.ones(self.n_zones),np.linspace(0,self.n_zones-1,self.n_zones),color=sm.to_rgba(currentData[:,q]),s=65,marker='s')
+
+        plt.ylim(-0.1,self.n_zones+0.1)
+        plt.ylabel('Zone Number',fontsize=14)
+        plt.title('Density',fontsize=18)
+        plt.colorbar(sm,location='right',label=r'log$_{10}$(Density $\frac{g}{cm^3}$)')
+        
+    def plotTgas(self):
+
+        plt.figure(figsize=(16,12))
+        currentData = np.log10(self.T_gas)
+    
+        sm = plt.cm.ScalarMappable(cmap=plt.cm.coolwarm,norm=plt.Normalize(vmin=min(np.min(currentData),2),
+                                                                   vmax=min(np.max(currentData),5)))
+        for q in range(len(self.times)):
+            plt.scatter(self.times[q]*np.ones(self.n_zones),np.linspace(0,self.n_zones-1,self.n_zones),color=sm.to_rgba(currentData[:,q]),s=65,marker='s')
+
+        plt.ylim(-0.1,self.n_zones+0.1)
+        plt.ylabel('Zone Number',fontsize=14)
+        plt.title('Gas Temperature',fontsize=18)
+        plt.colorbar(sm,location='right',label=r'log$_{10}$(Temperature/K)')
+        
+    def plotPhotosphere(self,lamnu,unit):
+
+        currentData = self.calcOpticalDepth(lamnu=lamnu,unit=unit)
+    
+        plt.scatter(self.times,currentData,color='black',s=50)
 
