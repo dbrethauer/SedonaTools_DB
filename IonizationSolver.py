@@ -39,7 +39,7 @@ class Atom:
         
     def BB(self,nus=np.logspace(10,20,5000)):
     
-        p1 = 2*self.h*nus**3*c**-2
+        p1 = 2*self.h*nus**3*self.c**-2
         p2 = np.exp(self.h*nus/(self.k*self.temp))-1
         return p1/p2
     
@@ -90,7 +90,7 @@ class Atom:
         self.omegas = np.zeros(self.n_ions)
         self.LTE_ratios = np.zeros(self.n_ions)
         
-        min_rate = 1E-100
+        min_rate = 1E-50
         for i in np.arange(1,self.n_ions,1):
             if (self.ion_frac[i] == self.ion_frac[i-1]):
                 self.LTE_ratios[i] = 1
