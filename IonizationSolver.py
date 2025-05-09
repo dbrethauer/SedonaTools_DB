@@ -37,13 +37,13 @@ class Atom:
         self.lev_n = np.array(len(self.level_E))
         self.PI = np.zeros(len(self.level_E))
         
-    def BB(self,nus=np.logspace(10,20,5000)):
+    def BB(self,nus=np.logspace(10,20,2000)):
     
         p1 = 2*self.h*nus**3*self.c**-2
         p2 = np.exp(self.h*nus/(self.k*self.temp))-1
         return p1/p2
     
-    def photoionCross(self,nu_0,nus=np.logspace(10,20,5000)):
+    def photoionCross(self,nu_0,nus=np.logspace(10,20,2000)):
         return np.where(nus>nu_0,self.sigma_0*(nus/nu_0)**-3,0)
         
     def setTemp(self,temp):
@@ -61,6 +61,7 @@ class Atom:
         r_orb = self.e_e**2/(E_ion*self.ev_to_erg)
         #print(-1*self.n_gas*r_orb**3)
         w = np.exp(-1*self.n_gas*r_orb**3)
+        
         self.lev_n = w*self.level_g*np.exp(-self.level_E*self.ev_to_erg/(self.k*self.temp))
 
         for i in range(self.n_ions):
@@ -75,50 +76,72 @@ class Atom:
 
         norm = np.sum(self.ion_frac)
         self.ion_frac /= norm
+        #self.ion_frac = np.where(self.ion_frac < 1E-30,1E-30,self.ion_frac)
         
-    def getQNLTERates(self,nus=np.logspace(10,20,5000)):
+    def getQNLTERates(self,nus=np.logspace(10,20,2000)):
         self.PI = np.zeros(len(self.level_E))
         BB = self.BB(nus=nus)
+        allSigmas = np.empty((len(self.level_E),len(nus)))
         for i in range(len(self.level_E)):
             chi_nu = self.level_E[i]*self.ev_to_erg/self.h
-            sigma = self.photoionCross(chi_nu,nus=nus)
-            self.PI[i] = 4*np.pi*integrate.trapezoid(BB*sigma/(self.h*nus),nus)
+            allSigmas[i,:] = self.photoionCross(chi_nu,nus=nus)
+        self.PI = 4*np.pi*integrate.trapezoid(BB*allSigmas/(self.h*nus),nus)
             
     def getQNLTE(self,time,f=1/3):
         self.calcSaha()
         self.getQNLTERates()
         self.omegas = np.zeros(self.n_ions)
         self.LTE_ratios = np.zeros(self.n_ions)
+        self.radio = np.zeros(self.n_ions)
+        self.photo = np.zeros(self.n_ions)
+        self.recomb = np.zeros(self.n_ions)
+        recomb_constant = 3E-7*((self.temp/1E4)**-0.75-(1/3)*(self.temp/1E4)**-0.5)*self.ne
         
         min_rate = 1E-50
         for i in np.arange(1,self.n_ions,1):
+
+            rad_recom = i**2*recomb_constant
+            self.recomb[i] = rad_recom
             if (self.ion_frac[i] == self.ion_frac[i-1]):
-                self.LTE_ratios[i] = 1
+                self.LTE_ratios[i] = 1E-50 #should only happen when they are both the minimum
             else:
                 self.LTE_ratios[i] = self.ion_frac[i]/self.ion_frac[i-1]
-            if self.LTE_ratios[i] < min_rate:
-                self.LTE_ratios[i] = min_rate
+            #if self.LTE_ratios[i] < min_rate:
+            #    self.LTE_ratios[i] = min_rate
         tmp_ion_frac = np.zeros(self.n_ions)
         tmp_ion_frac[0] = 1.0
         
         for i in np.arange(1,self.n_ions,1):
             bools = np.where(i-1==self.level_i,True,False)
+            zeta = self.chis[i-1]*self.ev_to_erg/self.k/self.temp
+            coll_ion = 2.7*(zeta)**-2*((self.temp)**-1.5)*np.exp(-zeta)*self.ne
+            #print(zeta**-2,self.temp**-1.5,np.exp(-zeta),zeta)
             
             radio = np.sum(self.lev_n[bools]/(self.chis[self.level_i][bools] - self.level_E[bools]))
             
-            photo = np.sum(self.PI[bools]*self.lev_n[bools])
+            photo = np.sum(self.PI[bools]*self.lev_n[bools])# + coll_ion
             #print(i,self.PI[bools]*self.lev_n[bools])
             
             radio *= self.getRprocHeating(time)*f*self.mu_I*self.m_p
-            if photo < min_rate:
-                photo = min_rate
+            
+            self.radio[i] = radio
+            self.photo[i] = photo
+            min_ion_rate = 1E-40
+            if photo < min_ion_rate:
+                photo = min_ion_rate
+            #    self.omegas[i] = self.radio[i]/self.rad_recom[i]
+            #    self.LTE_ratios[i] = -1.0
             if radio < min_rate:
                 self.omegas[i] = 0
             else:
                 self.omegas[i] = radio/photo
             #print(i,radio,photo,self.omegas[i])
-            tmp_ion_frac[i] = (1+self.omegas[i])*self.LTE_ratios[i]*tmp_ion_frac[i-1]
+            if (self.LTE_ratios[i] != -1.0):
+                tmp_ion_frac[i] = (1+self.omegas[i])*self.LTE_ratios[i]*tmp_ion_frac[i-1]
+            else:
+                tmp_ion_frac[i] = self.omegas[i]*tmp_ion_frac[i-1]
             tmp_ion_frac = tmp_ion_frac/np.sum(tmp_ion_frac)
+            
         self.ion_frac = tmp_ion_frac
         
         
