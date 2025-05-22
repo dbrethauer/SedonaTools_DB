@@ -276,7 +276,7 @@ class Atom:
         self.recomb[1] = alpha*self.ion_frac[1]*self.n_gas
         #self.ion_frac[1] =
         
-    def solveDoubleIon(self,time,f=1/3,eta0_val=None,eta1_val=None):
+    def solveDoubleIon(self,time,f=1/3,eta0_val=None,eta1_val=None,includeGround=True):
         
         self.calcSaha()
         
@@ -286,6 +286,10 @@ class Atom:
         self.photo = np.zeros(self.n_ions)
         self.recomb = np.zeros(self.n_ions)
         alpha = 3E-11*((self.temp/1E4)**-0.75)
+        if includeGround == False:
+            alpha -= 1/3*(self.temp/1E4)**-0.5
+            if alpha < 0:
+                alpha = 1E-50
         
         radio_const = self.getRprocHeating(time)*f*self.mu_I*self.m_p/self.ev_to_erg
         
@@ -308,22 +312,24 @@ class Atom:
                 self.radio[i] = radio
                 self.photo[i] = photo
         
-            eta0_val = (self.photo[1]+self.radio[1])/(alpha)
-            eta1_val = (self.photo[2]+self.radio[2])/(alpha*2**2)
-        
+            eta0_val = (self.photo[1]+self.radio[1])/(alpha)/self.n_gas
+            eta1_val = (self.photo[2]+self.radio[2])/(alpha*2**2)/self.n_gas
+        self.eta0 = eta0_val
+        self.eta1 = eta1_val
+        #print(self.eta0,self.eta1)
         func = sp.Symbol('f', real=True)
      # Define polynomial coefficients
         coeffs = [1,eta0_val,eta0_val * (eta1_val - 1),-2 * eta0_val * eta1_val]
     # Create polynomial and get numeric roots
         poly = sp.Poly.from_list(coeffs, gens=func)
-        roots = poly.nroots()
+        roots = poly.nroots(n=8,maxsteps=500)
 
     # Filter real positive roots
         real_roots = [r for r in roots if sp.re(r) > 0 and abs(sp.im(r)) < 1e-10]
 
         if not real_roots:
             print("No positive real root found.")
-            return None
+            #return None
 
         fe = float(real_roots[0]) # take smallest positive root
         denom = 1 + eta0_val/fe + (eta0_val * eta1_val)/fe**2
@@ -333,6 +339,8 @@ class Atom:
         
         self.ion_frac[:3] = np.array([f0,f1,f2])
         self.setNe(fe*self.n_gas)
+        self.recomb[1] = alpha*fe*self.n_gas
+        self.recomb[2] = 2**2*alpha*self.n_gas
 
         #return {"fe": fe,"f0": f0,"f1": f1,"f2": f2}
 
