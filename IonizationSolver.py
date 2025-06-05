@@ -344,7 +344,42 @@ class Atom:
 
         #return {"fe": fe,"f0": f0,"f1": f1,"f2": f2}
 
+    def findFion(self,E_e = 1):
+        #Assumes value of electron with kinetic energy of 1 MeV.
+        beta = np.sqrt(1-(E_e*1E6*self.ev_to_erg/self.m_e/self.c**2+1)**-2)
         
+        v_e = beta*self.c
+        #print(v_e,v_e/self.c,1-beta**2)
+        #ignoring variables that will jsut cancel out
+        Z=1#(self.ne/self.n_gas)#1
+        factor_b = Z
+        factor_th = self.ne/self.n_gas
+        average_I = np.sum(self.ion_frac[:-1]*self.chis[:-1])/np.sum(self.ion_frac[:-1])*self.ev_to_erg
+        p1 = np.log(np.sqrt(self.m_e*v_e**2*E_e*self.ev_to_erg*1E6)/2**0.5/average_I/np.sqrt(1-beta**2))
+        p2 = (np.sqrt(1-beta**2)-(1-beta**2)/2)*np.log(2)
+        p3 = (1-beta**2)/2
+        p4 = 1/16*(1-np.sqrt(1-beta**2))**2
+        #print(p1)
+        #print(p2)
+        #print(p3)
+        #print(p4)
+        L_bethe = factor_b*(p1-p2+p3+p4)
+        omega_p = np.sqrt(4*np.pi*self.ne*self.e_e**2/(self.m_e))
+        #print(omega_p)
+        #print(np.log(1.123*self.m_e*v_e**3/self.e_e**2/omega_p))
+        #energy put into excitations and ionizations
+        L_thermal_p = np.log(1.123*self.m_e*v_e**3/self.e_e**2/omega_p)#energy losses to thermal electrons
+        L_thermal_p *= factor_th
+        #print(L_bethe,L_thermal_p)
+        
+        return L_bethe/(L_bethe+L_thermal_p)
+        
+    def getIonProperties(self):
+        self.average_ion = np.sum(self.ion_frac*np.arange(0,self.n_ions,1))
+        self.average_chi = np.sum(self.ion_frac[:-1]*self.chis[:-1])/np.sum(self.ion_frac[:-1])
+        
+        
+    
     def brent(self,func,*args,max_iters=100,aa=1,bb=10,epsilon=0.01):
         n = 0
         a = aa

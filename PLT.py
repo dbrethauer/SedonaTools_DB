@@ -20,6 +20,7 @@ class PLT:
         self.Jnu = np.array([])
         self.emissivity = np.array([])
         self.nu = np.array([])
+        self.ne = np.array([])
         self.dnu = np.array([])
         self.r = np.array([])
         self.r_inner = np.array([])
@@ -54,11 +55,13 @@ class PLT:
         self.r = np.empty((self.n_zones,len(self.files)))
         self.r_inner = np.empty(len(self.files))
         self.lengths = np.empty((self.n_zones,len(self.files)))
+        self.ne = np.empty((self.n_zones,len(self.files)))
         for q in range(len(self.files)):
             with h5py.File(self.path+self.files[q],'r') as f:
                 self.times = np.append(self.times,np.array(f['time'])/(3600*24),axis=0)
                 self.T_gas[:,q] = np.array(f['T_gas'])
                 self.T_rad[:,q] = np.array(f['T_rad'])
+                self.ne[:,q] = np.array(f['n_elec'])
                 self.rho[:,q] = np.array(f['rho'])
                 self.r[:,q] = np.array(f['r'])
                 self.r_inner[q] = np.array(f['r_inner'])
@@ -116,14 +119,20 @@ class PLT:
         fixed_indices = np.where(indices==(self.n_zones-1),0,indices)
         return fixed_indices
         
-    def plotIonStageAtom(self,Z=60,ion=0):
+    def plotIonStageAtom(self,Z=60,ion=0,log=True):
 
         plt.figure(figsize=(16,12))
-        sm = plt.cm.ScalarMappable(cmap=plt.cm.coolwarm,norm=plt.Normalize(vmin=-5,
+        if log:
+            sm = plt.cm.ScalarMappable(cmap=plt.cm.coolwarm,norm=plt.Normalize(vmin=-5,
                                                                 vmax=0))
+        else:
+            sm = plt.cm.ScalarMappable(cmap=plt.cm.coolwarm,norm=plt.Normalize(vmin=0,
+                                                                vmax=1))
         ky = 'Z_'+str(Z)
-
-        currentData = np.log10(self.atoms[ky][:,:,ion])
+        if log:
+            currentData = np.log10(self.atoms[ky][:,:,ion])
+        else:
+            currentData = self.atoms[ky][:,:,ion]
         currentData = np.where(currentData==np.nan,-5,currentData)
         for q in range(len(self.times)):
             plt.scatter(self.times[q]*np.ones(self.n_zones),np.linspace(0,self.n_zones-1,self.n_zones),color=sm.to_rgba(currentData[:,q]),s=65,marker='s')
@@ -185,3 +194,5 @@ class PLT:
     
         plt.scatter(self.times,currentData,color='black',s=50)
 
+    #def calcPlanckOpacity(self):
+        

@@ -255,3 +255,19 @@ class SedonaModel:
             if self.file in list(f.keys()):
                 for q in list(f[self.file].keys()):
                     self.curves[q] = np.array(f[self.file+'/'+q])
+
+
+
+class TwoComponent(SedonaModel):
+    def __init__(self,SM1,SM2):
+        self.name1, self.name2 = SM1.name, SM2.name
+        if SM1.freq != SM2.freq:
+            raise Exception("The frequency grids are not the same")
+        if SM1.time != SM2.time:
+            raise Exception("The time grids are not the same")
+        self.curves = {}
+        self.freq = SM1.freq
+        self.time = SM1.time
+        self.AA = SM1.AA
+        self.Lnu = SM1.Lnu + SM2.Lnu
+        self.Llam = SM1.Llam + SM2.Llam
