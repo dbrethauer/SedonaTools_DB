@@ -261,13 +261,17 @@ class SedonaModel:
 class TwoComponent(SedonaModel):
     def __init__(self,SM1,SM2):
         self.name1, self.name2 = SM1.name, SM2.name
-        if SM1.freq != SM2.freq:
+        if not (SM1.freq == SM2.freq).all() and not (np.shape(SM1.freq) == np.shape(SM2.freq)):
             raise Exception("The frequency grids are not the same")
-        if SM1.time != SM2.time:
+        if not (SM1.time == SM2.time).all() and not (np.shape(SM1.time) == np.shape(SM2.time)):
             raise Exception("The time grids are not the same")
+        if not (SM1.mu_edges == SM2.mu_edges).all() and not (np.shape(SM1.mu_edges) == np.shape(SM2.mu_edges)):
+            raise Exception("The angular grids are not the same")
         self.curves = {}
         self.freq = SM1.freq
         self.time = SM1.time
         self.AA = SM1.AA
         self.Lnu = SM1.Lnu + SM2.Lnu
         self.Llam = SM1.Llam + SM2.Llam
+        self.mu_edges = SM1.mu_edges
+        self.mu = SM1.mu
