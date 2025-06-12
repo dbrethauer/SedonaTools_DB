@@ -204,7 +204,7 @@ class PLT:
             allTimes[q] = self.times
         for q in range(np.shape(allZones)[1]):
             allZones[:,q] = zones
-        colorsSchemes = [plt.cm.Greys,plt.cm.Blues,plt.cm.Oranges,plt.cm.Greys]
+        colorsSchemes = [plt.cm.Greys,plt.cm.Blues,plt.cm.Oranges,plt.cm.Purples]
         for i in range(max_ion):
             sm = plt.cm.ScalarMappable(cmap=colorsSchemes[i],norm=plt.Normalize(vmin=0,
                                                                 vmax=1))
