@@ -198,8 +198,8 @@ class PLT:
     def plotAllIons(self,Z=60,max_ion=3,s=65,figsize=(12,12)):
         ky = 'Z_'+str(Z)
         allTimes = np.ones((self.n_zones,len(self.times)))
-        allZones = np.ones((currentKN.n_zones,len(currentKN.times)))
-        zones = np.linspace(0,currentKN.n_zones-1,currentKN.n_zones)
+        allZones = np.ones((self.n_zones,len(self.times)))
+        zones = np.linspace(0,self.n_zones-1,self.n_zones)
         for q in range(len(allTimes)):
             allTimes[q] = self.times
         for q in range(np.shape(allZones)[1]):
