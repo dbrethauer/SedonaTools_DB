@@ -119,9 +119,9 @@ class PLT:
         fixed_indices = np.where(indices==(self.n_zones-1),0,indices)
         return fixed_indices
         
-    def plotIonStageAtom(self,Z=60,ion=0,log=True):
+    def plotIonStageAtom(self,Z=60,ion=0,log=True,s=65,figsize=(16,12)):
 
-        plt.figure(figsize=(16,12))
+        plt.figure(figsize=figsize)
         if log:
             sm = plt.cm.ScalarMappable(cmap=plt.cm.coolwarm,norm=plt.Normalize(vmin=-5,
                                                                 vmax=0))
@@ -135,7 +135,7 @@ class PLT:
             currentData = self.atoms[ky][:,:,ion]
         currentData = np.where(currentData==np.nan,-5,currentData)
         for q in range(len(self.times)):
-            plt.scatter(self.times[q]*np.ones(self.n_zones),np.linspace(0,self.n_zones-1,self.n_zones),color=sm.to_rgba(currentData[:,q]),s=65,marker='s')
+            plt.scatter(self.times[q]*np.ones(self.n_zones),np.linspace(0,self.n_zones-1,self.n_zones),color=sm.to_rgba(currentData[:,q]),s=s,marker='s')
 
         plt.ylim(-0.1,self.n_zones+0.1)
 
@@ -143,37 +143,37 @@ class PLT:
         plt.title('Ionization Stage '+ str(ion) + ' for Z = '+ky[-2:],fontsize=18)
         plt.colorbar(sm,location='right',label=r'log$_{10}$(Ion Fraction)')
         
-    def plotRho(self):
+    def plotRho(self,s=65,figsize=(16,12)):
 
-        plt.figure(figsize=(16,12))
+        plt.figure(figsize=figsize)
         currentData = np.log10(self.rho)
         sm = plt.cm.ScalarMappable(cmap=plt.cm.coolwarm,norm=plt.Normalize(vmin=min(np.min(currentData),-20),
                                                                             vmax=max(np.max(currentData),-5)))
         for q in range(len(self.times)):
-            plt.scatter(self.times[q]*np.ones(self.n_zones),np.linspace(0,self.n_zones-1,self.n_zones),color=sm.to_rgba(currentData[:,q]),s=65,marker='s')
+            plt.scatter(self.times[q]*np.ones(self.n_zones),np.linspace(0,self.n_zones-1,self.n_zones),color=sm.to_rgba(currentData[:,q]),s=s,marker='s')
 
         plt.ylim(-0.1,self.n_zones+0.1)
         plt.ylabel('Zone Number',fontsize=14)
         plt.title('Density',fontsize=18)
         plt.colorbar(sm,location='right',label=r'log$_{10}$(Density $\frac{g}{cm^3}$)')
         
-    def plotTgas(self):
+    def plotTgas(self,s=65,figsize=(16,12)):
 
-        plt.figure(figsize=(16,12))
+        plt.figure(figsize=figsize)
         currentData = np.log10(self.T_gas)
     
         sm = plt.cm.ScalarMappable(cmap=plt.cm.coolwarm,norm=plt.Normalize(vmin=min(np.min(currentData),2),
                                                                    vmax=min(np.max(currentData),5)))
         for q in range(len(self.times)):
-            plt.scatter(self.times[q]*np.ones(self.n_zones),np.linspace(0,self.n_zones-1,self.n_zones),color=sm.to_rgba(currentData[:,q]),s=65,marker='s')
+            plt.scatter(self.times[q]*np.ones(self.n_zones),np.linspace(0,self.n_zones-1,self.n_zones),color=sm.to_rgba(currentData[:,q]),s=s,marker='s')
 
         plt.ylim(-0.1,self.n_zones+0.1)
         plt.ylabel('Zone Number',fontsize=14)
         plt.title('Gas Temperature',fontsize=18)
         plt.colorbar(sm,location='right',label=r'log$_{10}$(Temperature/K)')
         
-    def plotGeneric(self,Z,log=False,colormin=0,colormax=10,label='Unlabeled'):
-        plt.figure(figsize=(16,12))
+    def plotGeneric(self,Z,log=False,colormin=0,colormax=10,label='Unlabeled',s=65,figsize=(16,12)):
+        plt.figure(figsize=figsize)
         currentData = Z
         if log:
             currentData = np.log10(currentData)
@@ -181,7 +181,7 @@ class PLT:
         sm = plt.cm.ScalarMappable(cmap=plt.cm.coolwarm,norm=plt.Normalize(vmin=colormin,
                                                                    vmax=colormax))
         for q in range(len(self.times)):
-            plt.scatter(self.times[q]*np.ones(self.n_zones),np.linspace(0,self.n_zones-1,self.n_zones),color=sm.to_rgba(currentData[:,q]),s=65,marker='s')
+            plt.scatter(self.times[q]*np.ones(self.n_zones),np.linspace(0,self.n_zones-1,self.n_zones),color=sm.to_rgba(currentData[:,q]),s=s,marker='s')
 
         plt.ylim(-0.1,self.n_zones+0.1)
         plt.ylabel('Zone Number',fontsize=14)
@@ -195,4 +195,24 @@ class PLT:
         plt.scatter(self.times,currentData,color='black',s=50)
 
     #def calcPlanckOpacity(self):
+    def plotAllIons(self,Z=60,max_ion=3,s=65,figsize=(12,12)):
+        ky = 'Z_'+str(Z)
+        allTimes = np.ones((self.n_zones,len(self.times)))
+        allZones = np.ones((currentKN.n_zones,len(currentKN.times)))
+        zones = np.linspace(0,currentKN.n_zones-1,currentKN.n_zones)
+        for q in range(len(allTimes)):
+            allTimes[q] = self.times
+        for q in range(np.shape(allZones)[1]):
+            allZones[:,q] = zones
+        colorsSchemes = [plt.cm.Greys,plt.cm.Blues,plt.cm.Oranges,plt.cm.Greys]
+        for i in range(max_ion):
+            sm = plt.cm.ScalarMappable(cmap=colorsSchemes[i],norm=plt.Normalize(vmin=0,
+                                                                vmax=1))
+            currentBools = np.where(self.atoms[ky][:,:,i]==np.max(self.atoms[ky],axis=2),True,False)
+    #print(np.shape(currentBools))
+            currentData = self.atoms[ky][:,:,i][currentBools].flatten()
+    #print(np.shape(currentData))
+            plt.scatter(allTimes[currentBools],allZones[currentBools].flatten(),color=sm.to_rgba(currentData),s=s,marker='s')
+    
+    
         
