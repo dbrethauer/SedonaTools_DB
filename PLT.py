@@ -196,6 +196,10 @@ class PLT:
 
     #def calcPlanckOpacity(self):
     def plotAllIons(self,Z=60,max_ion=3,s=65,figsize=(12,12)):
+        fig = plt.figure(figsize=figsize)
+        plt.ylim(-0.1,self.n_zones+0.1)
+        plt.ylabel('Zone Number',fontsize=14)
+        plt.tick_params(axis='both', which='major', labelsize=18)
         ky = 'Z_'+str(Z)
         allTimes = np.ones((self.n_zones,len(self.times)))
         allZones = np.ones((self.n_zones,len(self.times)))
@@ -204,7 +208,7 @@ class PLT:
             allTimes[q] = self.times
         for q in range(np.shape(allZones)[1]):
             allZones[:,q] = zones
-        colorsSchemes = [plt.cm.Greys,plt.cm.Blues,plt.cm.Oranges,plt.cm.Purples]
+        colorsSchemes = [plt.cm.Greys,plt.cm.Purples,plt.cm.Blues,plt.cm.Greens,plt.cm.Oranges]
         for i in range(max_ion):
             sm = plt.cm.ScalarMappable(cmap=colorsSchemes[i],norm=plt.Normalize(vmin=0,
                                                                 vmax=1))
@@ -213,6 +217,15 @@ class PLT:
             currentData = self.atoms[ky][:,:,i][currentBools].flatten()
     #print(np.shape(currentData))
             plt.scatter(allTimes[currentBools],allZones[currentBools].flatten(),color=sm.to_rgba(currentData),s=s,marker='s')
+        for i in range(max_ion):
+            sm = plt.cm.ScalarMappable(cmap=colorsSchemes[i],norm=plt.Normalize(vmin=0,
+                                                                vmax=1))
+            cbar_ax = fig.add_axes([0.95, 1-(i+1)/(max_ion+1), 0.2, 0.02])
+            cb = fig.colorbar(sm,cax=cbar_ax,orientation='horizontal')
+            cb.set_label('I = ' +str(i),fontsize=14)
+            cb.ax.tick_params(labelsize=14)
+        #plt.tight_layout(rect=[0, 0, 0.9, 1])
+        
     
     
         
