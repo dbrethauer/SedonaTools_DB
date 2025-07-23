@@ -27,8 +27,10 @@ class PLT:
         self.lengths = np.array([])
         self.levels = {}
         self.levels_bool = levels
+        self.velr = np.array([])
         if len(self.files) > 0 and 'plt_00001.h5' in self.files:
             with h5py.File(path+'/plt_00001.h5','r') as f:
+                self.velr = np.array(f['velr'])
                 self.n_zones = len(np.array(f['T_gas']))
                 self.nu = np.array(f['nu'])
                 self.dnu = np.array([self.nu[i]-self.nu[i-1] if i>0 else self.nu[0] for i in range(len(self.nu))])
@@ -53,6 +55,7 @@ class PLT:
         self.T_rad = np.empty((self.n_zones,len(self.files)))
         self.rho = np.empty((self.n_zones,len(self.files)))
         self.r = np.empty((self.n_zones,len(self.files)))
+        #self.velr = np.empty((self.n_zones,len(self.files)))
         self.r_inner = np.empty(len(self.files))
         self.lengths = np.empty((self.n_zones,len(self.files)))
         self.ne = np.empty((self.n_zones,len(self.files)))
@@ -65,6 +68,7 @@ class PLT:
                 self.rho[:,q] = np.array(f['rho'])
                 self.r[:,q] = np.array(f['r'])
                 self.r_inner[q] = np.array(f['r_inner'])
+                
                 temp_r = self.r[:,q]
                 temp_r = np.insert(temp_r,0,self.r_inner[q])
                 self.lengths[:,q] = self.r[:,q]-temp_r[:-1]
@@ -195,11 +199,14 @@ class PLT:
         plt.scatter(self.times,currentData,color='black',s=50)
 
     #def calcPlanckOpacity(self):
-    def plotAllIons(self,Z=60,max_ion=3,s=65,figsize=(12,12),fill=True,f=0.8):
+    def plotAllIons(self,Z=60,max_ion=3,s=65,figsize=(12,12),fill=True,f=-0.5,vel=False):
         fig = plt.figure(figsize=figsize)
-        plt.ylim(-0.1,self.n_zones+0.1)
+        plt.ylim(-0.1,self.n_zones+0.1-1)
         plt.xlim(-0.1,max(self.times)+0.1)
-        plt.ylabel('Zone Number',fontsize=14)
+        if vel:
+            plt.ylabel('Velocity (c)',fontsize=14)
+        else:
+            plt.ylabel('Zone Number',fontsize=14)
         plt.xlabel('Days', fontsize=14)
         plt.tick_params(axis='both', which='major', labelsize=18)
         ky = 'Z_'+str(Z)
@@ -208,8 +215,12 @@ class PLT:
         zones = np.linspace(0,self.n_zones-1,self.n_zones)
         for q in range(len(allTimes)):
             allTimes[q] = self.times
-        for q in range(np.shape(allZones)[1]):
-            allZones[:,q] = zones
+        if vel:
+            for q in range(np.shape(allZones)[1]):
+                allZones[:,q] = self.velr/3E10
+        else:
+            for q in range(np.shape(allZones)[1]):
+                allZones[:,q] = zones
         colorsSchemes = [plt.cm.Greys,plt.cm.Purples,plt.cm.Blues,plt.cm.Greens,plt.cm.Oranges]
         if fill:
             allOffs = np.ones((self.n_zones,len(self.times)))
