@@ -13,6 +13,15 @@ class AstroFilter:
         self.counter = counter.lower()
         
         
+SwiftUVW2 = AstroFilter('Swift_UVOT.UVW2.dat',2.59051e-8,2130.69)
+SwiftUVM2 = AstroFilter('Swift_UVOT.UVM2.dat',2.15291e-8,2274.02)
+
+SwiftUVW1 = AstroFilter('Swift_UVOT.UVW1.dat',1.57569e-8,2726.30)
+SwiftU = AstroFilter('Swift_UVOT.U.dat',9.04276e-9,3495.11)
+SwiftB = AstroFilter('Swift_UVOT.B.dat',5.75187e-9,4378.79)
+SwiftV = AstroFilter('Swift_UVOT.V.dat',3.69696e-9,5440.57)
+
+
 LSSTu = AstroFilter('LSST_LSST.u.dat',8.03787e-9,3694.25)
 LSSTg = AstroFilter('LSST_LSST.g.dat',4.7597e-9,4840.83)
 LSSTr = AstroFilter('LSST_LSST.r.dat',2.8156e-9,6257.74)
