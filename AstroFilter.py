@@ -21,6 +21,8 @@ SwiftU = AstroFilter('Swift_UVOT.U.dat',9.04276e-9,3495.11)
 SwiftB = AstroFilter('Swift_UVOT.B.dat',5.75187e-9,4378.79)
 SwiftV = AstroFilter('Swift_UVOT.V.dat',3.69696e-9,5440.57)
 
+Swift = [SwiftUVW2,SwiftUVM2,SwiftUVW1,SwiftU,SwiftB,SwiftV]
+
 
 LSSTu = AstroFilter('LSST_LSST.u.dat',8.03787e-9,3694.25)
 LSSTg = AstroFilter('LSST_LSST.g.dat',4.7597e-9,4840.83)
@@ -90,6 +92,18 @@ colors['1500'] = sm.to_rgba(5)
 colors['1800'] = sm.to_rgba(6)
 colors['2100'] = sm.to_rgba(7)
 colors['2550'] = sm.to_rgba(8)
+
+sm = plt.cm.ScalarMappable(cmap=plt.cm.cool,
+                                    norm=plt.Normalize(vmin=0,
+                                    vmax=len(Swift)))
+                                    
+colors['B'] = sm.to_rgba(0)
+colors['V'] = sm.to_rgba(1)
+colors['U'] = sm.to_rgba(2)
+colors['W1'] = sm.to_rgba(3)
+colors['M2'] = sm.to_rgba(4)
+colors['W2'] = sm.to_rgba(5)
+
 to_model = {'u':LSSTu,'g':LSSTg,
             'r':LSSTr,'i':LSSTi,
             'z':LSSTz,'y':LSSTy,
@@ -102,4 +116,7 @@ to_model = {'u':LSSTu,'g':LSSTg,
             '1000':JWSTF1000,'1130':JWSTF1130,
             '1280':JWSTF1280,'1500':JWSTF1500,
             '1800':JWSTF1800,'2100':JWSTF2100,
-            '2550':JWSTF2550}
+            '2550':JWSTF2550,
+            'W2':SwiftUVW2, 'M2':SwiftUVM2,
+            'W1':SwiftUVW1, 'U':SwiftU,
+            'V':SwiftV,'B':SwiftB}
