@@ -62,58 +62,58 @@ class SedonaModel:
             return (Y+Y_s)/2
         else:
             return Y
-    def getLum(self,time=None,angle=0,angle_ind=None):
+    def getLum(self,time=None,angle=0,angle_ind=None,symmetric=False):
         if angle_ind==None:
             angle_ind = self.getAngleInd(angle=angle)
-        spec = self.getSpec(time=time,mode='nu',angle_ind=angle_ind)
+        spec = self.getSpec(time=time,mode='nu',angle_ind=angle_ind,symmetric=symmetric)
         return integrate.trapezoid(spec,self.freq)
-    def getLumCurve(self,angle=0,angle_ind=None):
+    def getLumCurve(self,angle=0,angle_ind=None,symmetric=False):
         if angle_ind == None:
             angle_ind = self.getAngleInd(angle=angle)
         costheta = self.mu[angle_ind]
         if not 'Bolometric'+str(costheta) in self.curves.keys():
-            lums = self.getLum(self.time,angle_ind=angle_ind)#np.zeros(len(self.time))
+            lums = self.getLum(self.time,angle_ind=angle_ind,symmetric=symmetric)#np.zeros(len(self.time))
             #for i in range(len(self.time)):
             #    lums[i] = self.getLum(self.time[i],angle_ind=angle_ind)
             self.curves['Bolometric'+str(costheta)] = lums
             return lums
         else:
             return self.curves['Bolometric'+str(costheta)]
-    def getPeakLum(self,angle=0,angle_ind=None):
+    def getPeakLum(self,angle=0,angle_ind=None,symmetric=False):
         if angle_ind == None:
             angle_ind = self.getAngleInd(angle=angle)
         costheta = self.mu[angle_ind]
         if not 'Bolometric'+str(costheta) in self.curves.keys():
-            self.getLumCurve(angle_ind=angle_ind)
+            self.getLumCurve(angle_ind=angle_ind,symmetric=symmetric)
             return max(self.curves['Bolometric'+str(costheta)])
         else:
             return max(self.curves['Bolometric'+str(costheta)])
-    def getPseudoLum(self,time,nu_max=(3E18/3000),nu_min=(3E18/25000),angle=0,angle_ind=None):
+    def getPseudoLum(self,time,nu_max=(3E18/3000),nu_min=(3E18/25000),angle=0,angle_ind=None,symmetric=False):
         if angle_ind == None:
             angle_ind = self.getAngleInd(angle=angle)
-        spec = self.getSpec(time,'nu',angle_ind=angle_ind)
+        spec = self.getSpec(time,'nu',angle_ind=angle_ind,symmetric=symmetric)
         PseudoSpec = spec[(self.freq >= nu_min)&(self.freq<=nu_max)]
         PseudoFreq = self.freq[(self.freq >= nu_min)&(self.freq<=nu_max)]
         return integrate.trapezoid(PseudoSpec,PseudoFreq)
-    def getPseudoLumCurve(self,nu_max=(3E18/3000),nu_min=(3E18/25000),angle=0,angle_ind=None):
+    def getPseudoLumCurve(self,nu_max=(3E18/3000),nu_min=(3E18/25000),angle=0,angle_ind=None,symmetric=False):
         if angle_ind == None:
             angle_ind = self.getAngleInd(angle=angle)
         costheta = self.mu[angle_ind]
         if not 'PseudoBolometric' +str(costheta) in self.curves.keys():
             lums = np.zeros(len(self.time))
             for i in range(len(self.time)):
-                lums[i] = self.getPseudoLum(self.time[i],nu_max=nu_max,nu_min=nu_min,angle_ind=angle_ind)
+                lums[i] = self.getPseudoLum(self.time[i],nu_max=nu_max,nu_min=nu_min,angle_ind=angle_ind,symmetric=symmetric)
             self.curves['PsuedoBolometric'+str(costheta)] = lums
             return lums
         else:
             return self.curves['PseudoBolometric'+str(costheta)]
-    def getMag(self,time,filt,dist,angle=0,angle_ind=None): #filter should be in angstrom, use from SVO. SVO has much higher resolution so assumes that
+    def getMag(self,time,filt,dist,angle=0,angle_ind=None,symmetric=False): #filter should be in angstrom, use from SVO. SVO has much higher resolution so assumes that
         if angle_ind == None:
             angle_ind = self.getAngleInd(angle=angle)
         costheta = self.mu[angle_ind]
         
         if not (filt.name+str(costheta) in self.curves.keys()):
-            spec = self.getSpec(time,'lam',angle_ind=angle_ind)/(4*np.pi*dist**2)
+            spec = self.getSpec(time,'lam',angle_ind=angle_ind,symmetric=symmetric)/(4*np.pi*dist**2)
             #print(max(spec))
             Trans = np.zeros(len(self.AA))#np.where((self.AA >= filt.AA.min())&(self.AA <= filt.AA.max()),,0)#np.zeros(len(self.AA))
             inds = np.searchsorted(filt.AA,self.AA)
@@ -140,45 +140,45 @@ class SedonaModel:
         else:
             ind = np.searchsorted(self.time,time)
             return self.curves[filt.name+str(costheta)][ind] + 5*np.log10(dist/(1E-6*10*3.086E24))
-    def getLightCurve(self,filt,dist=(1E-6*10*3.086E24),angle=0,angle_ind=None):
+    def getLightCurve(self,filt,dist=(1E-6*10*3.086E24),angle=0,angle_ind=None,symmetric=False):
         if angle_ind == None:
             angle_ind = self.getAngleInd(angle=angle)
         costheta = self.mu[angle_ind]
         if not (filt.name+str(costheta) in self.curves.keys()):
-            mags = self.getMag(self.time,filt,dist,angle_ind=angle_ind)#np.zeros(len(self.time))
+            mags = self.getMag(self.time,filt,dist,angle_ind=angle_ind,symmetric=symmetric)#np.zeros(len(self.time))
             #for i in range(len(self.time)):
             #    mags[i] = self.getMag(self.time[i],filt,dist,angle_ind=angle_ind)
             self.curves[filt.name+str(costheta)] = mags - 5*np.log10(dist/(1E-6*10*3.086E24)) #Give distance in cm. Stores absolute magnitudes
             return mags
         else:
             return self.curves[filt.name+str(costheta)] + 5*np.log10(dist/(1E-6*10*3.086E24)) #Returns apparent magnitudes
-    def getPeakMag(self,filt,angle=0,angle_ind=None):
+    def getPeakMag(self,filt,angle=0,angle_ind=None,symmetric=False):
         if angle_ind == None:
             angle_ind = self.getAngleInd(angle=angle)
         costheta = self.mu[angle_ind]
         if filt.name+str(costheta) in self.curves.keys():
             mags = self.curves[filt.name+str(costheta)]
         else:
-            tmp = self.getLightCurve(filt,1E-6*10*3.086E24,angle_ind=angle_ind)
+            tmp = self.getLightCurve(filt,1E-6*10*3.086E24,angle_ind=angle_ind,symmetric=symmetric)
             mags = self.curves[filt.name+str(costheta)]
         peak = min(mags)
         time = self.time[list(mags).index(peak)]
         return time,peak
-    def getColorCurve(self,filt1,filt2,angle=0,angle_ind=None): #returns color1 - color2
+    def getColorCurve(self,filt1,filt2,angle=0,angle_ind=None,symmetric=False): #returns color1 - color2
         if angle_ind == None:
             angle_ind = self.getAngleInd(angle=angle)
         costheta = self.mu[angle_ind]        
         fakeDist = 1E24
         if not filt1.name+str(costheta) in self.curves.keys():
-            mags1 = self.getLightCurve(filt1,fakeDist,angle_ind=angle_ind) - 5*np.log10(fakeDist/(1E-6*10*3.086E24))
+            mags1 = self.getLightCurve(filt1,fakeDist,angle_ind=angle_ind,symmetric=symmetric) - 5*np.log10(fakeDist/(1E-6*10*3.086E24))
         else:
             mags1 = self.curves[filt1.name+str(costheta)]
         if not filt2.name+str(costheta) in self.curves.keys():
-            mags2 = self.getLightCurve(filt2,fakeDist,angle_ind=angle_ind) - 5*np.log10(fakeDist/(1E-6*10*3.086E24))
+            mags2 = self.getLightCurve(filt2,fakeDist,angle_ind=angle_ind,symmetric=symmetric) - 5*np.log10(fakeDist/(1E-6*10*3.086E24))
         else:
             mags2 = self.curves[filt2.name+str(costheta)]
         return mags1-mags2
-    def getColor(self,filt1,filt2,time,angle=0,angle_ind=None):
+    def getColor(self,filt1,filt2,time,angle=0,angle_ind=None,symmetric=False):
         if angle_ind == None:
             angle_ind = self.getAngleInd(angle=angle)      
         diff = list(np.abs(self.time-time))
@@ -186,13 +186,13 @@ class SedonaModel:
         ind = diff.index(minimum)
         if minimum > 0.5:
             print('WARNING: NO SPECTRUM TIMES WITHIN 0.5 DAYS OF SELECTED TIME; CHOOSING CLOSEST at t='+str(self.time[ind]) + ' days')
-        colors = self.getColorCurve(filt1,filt2,angle_ind=angle_ind)
+        colors = self.getColorCurve(filt1,filt2,angle_ind=angle_ind,symmetric=symmetric)
         return colors[ind]
-    def getRiseRate(self,filt,time,buffer,angle=0,angle_ind=None):
+    def getRiseRate(self,filt,time,buffer,angle=0,angle_ind=None,symmetric=False):
         if angle_ind == None:
             angle_ind = self.getAngleInd(angle=angle)
         fakeDist = 1E24
-        currentMags = self.getLightCurve(filt,fakeDist,angle_ind=angle_ind) - 5*np.log10(fakeDist/(1E-6*10*3.086E24))
+        currentMags = self.getLightCurve(filt,fakeDist,angle_ind=angle_ind,symmetric=symmetric) - 5*np.log10(fakeDist/(1E-6*10*3.086E24))
         currentBools = ((self.time >= (time-buffer))&(self.time <= (time+buffer)))
             
         currentTimes = self.time[currentBools]
@@ -201,14 +201,14 @@ class SedonaModel:
         slope, intercept, r_value, p_value, std_err = stats.linregress(currentTimes,currentMags)
         
         return slope
-    def getTimeAboveHalf(self,filt,dist,angle=0,angle_ind=None):
+    def getTimeAboveHalf(self,filt,dist,angle=0,angle_ind=None,symmetric=False):
         if angle_ind == None:
             angle_ind = self.getAngleInd(angle=angle)       
-        time,peak = self.getPeakMag(filt,angle_ind=angle_ind)
+        time,peak = self.getPeakMag(filt,angle_ind=angle_ind,symmetric=symmetric)
         peak = peak + 5*np.log10(dist/(1E-6*10*3.086E24))
         halfMag = peak-2.5*np.log10(0.5)
         
-        mags = self.getLightCurve(filt,dist,angle_ind=angle_ind)
+        mags = self.getLightCurve(filt,dist,angle_ind=angle_ind,symmetric=symmetric)
         
         above_inds = np.where(mags<=halfMag)
         
