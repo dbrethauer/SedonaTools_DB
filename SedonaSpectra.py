@@ -40,7 +40,7 @@ class SedonaModel:
         if angle_ind != 0:
             angle_ind -= 1
         return angle_ind
-    def getSpec(self,time=None,mode='lam',angle=0,angle_ind=None):
+    def getSpec(self,time=None,mode='lam',angle=0,angle_ind=None,symmetric=False):
         if angle_ind == None:
             angle_ind = self.getAngleInd(angle=angle)
         #print(angle_ind)
@@ -52,9 +52,16 @@ class SedonaModel:
         if ((self.time[diff] - time) > 0.5).any():
             print('WARNING: NO SPECTRUM TIMES WITHIN 0.5 DAYS OF SELECTED TIME(S); CHECK TIME INPUT')
         if mode == 'lam':
-            return self.Llam[diff,:,angle_ind]
+            Y = self.Llam[diff,:,angle_ind]
+            Y_s = self.Llam[diff,:,len(self.mu)-1-angle_ind]
         if mode == 'nu':
-            return self.Lnu[diff,:,angle_ind]
+            Y = self.Lnu[diff,:,angle_ind]
+            Y_s = self.Lnu[diff,:,len(self.mu)-1-angle_ind]
+            
+        if symmetric:
+            return (Y+Y_s)/2
+        else:
+            return Y
     def getLum(self,time=None,angle=0,angle_ind=None):
         if angle_ind==None:
             angle_ind = self.getAngleInd(angle=angle)
@@ -255,9 +262,63 @@ class SedonaModel:
             if self.file in list(f.keys()):
                 for q in list(f[self.file].keys()):
                     self.curves[q] = np.array(f[self.file+'/'+q])
+                    
+                    
+    def plotTimeSeriesSpec(self,t_low=1,t_high=5,spacing=1,angle=90,style='-',mode='lam'):
+        sm = plt.cm.ScalarMappable(cmap=plt.cm.coolwarm,
+                                    norm=plt.Normalize(vmin=t_low,
+                                    vmax=t_high))
 
+        ts = np.arange(t_low,t_high+spacing,spacing)
+        colors = sm.to_rgba(ts)
+        
+        if mode == 'lam':
+            Xs = self.AA
+            plt.xlabel('Wavelength ($\AA$)',fontsize=14)
+            plt.ylabel("Specific Flux (erg/s/cm$^2$/$\AA$)",fontsize=14)
+        elif mode == 'nu':
+            Xs = self.freq
+            plt.xlabel('Frequency (Hz)',fontsize=14)
+            plt.ylabel("Specific Flux (erg/s/cm$^2$/Hz)",fontsize=14)
 
+        for q in range(len(ts)):
+            plt.errorbar(Xs,self.getSpec(ts[q],mode,angle=angle)[0],color=colors[q],label="t = " + str(ts[q]) + " days",linestyle=style)
+        plt.xscale('log')
+        plt.colorbar(sm,location='right')#,label='Days since Merger')
+        y_low, y_high = plt.ylim()
+        x_low, x_high = plt.xlim()
+        plt.text(1.25*x_high,(y_low+y_high)/2,"Time since Merger (d)",ha='center',va='center',rotation='vertical',fontsize=14)
 
+        plt.ylim(y_low,y_high)
+        
+    def plotAngleSeriesSpec(self,t_obs=5,mode='lam',symmetric=False):
+    
+        if symmetric:
+            angle_max = 90
+        else:
+            angle_max = 180
+        sm = plt.cm.ScalarMappable(cmap=plt.cm.rainbow,norm=plt.Normalize(vmin=0,
+                                                                   vmax=angle_max))
+        if mode == 'lam':
+            Xs = self.AA
+            plt.xlabel('Wavelength ($\AA$)',fontsize=14)
+            plt.ylabel("Specific Flux (erg/s/cm$^2$/$\AA$)",fontsize=14)
+        elif mode == 'nu':
+            Xs = self.freq
+            plt.xlabel('Frequency (Hz)',fontsize=14)
+            plt.ylabel("Specific Flux (erg/s/cm$^2$/Hz)",fontsize=14)
+            
+        
+        if symmetric:
+            n_mu = np.arange(int(len(self.mu)/2),len(self.mu),1)
+        else:
+            n_mu = np.arange(0,len(self.mu),1)
+
+        for q in n_mu:
+            Y = self.getSpec(time=t_obs,angle=np.arccos(self.mu[q])*180/np.pi,mode=mode,symmetric=symmetric)[0]
+            plt.errorbar(Xs,Y,color=sm.to_rgba(np.arccos(self.mu[q])*180/np.pi),label=round(np.arccos(self.mu[q])*180/np.pi,0))
+
+        
 class TwoComponent(SedonaModel):
     def __init__(self,SM1,SM2):
         self.name1, self.name2 = SM1.name, SM2.name
