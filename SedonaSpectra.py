@@ -264,7 +264,7 @@ class SedonaModel:
                     self.curves[q] = np.array(f[self.file+'/'+q])
                     
                     
-    def plotTimeSeriesSpec(self,t_low=1,t_high=5,spacing=1,angle=90,style='-',mode='lam'):
+    def plotTimeSeriesSpec(self,t_low=1,t_high=5,spacing=1,angle=90,style='-',mode='lam',symmetric=False):
         sm = plt.cm.ScalarMappable(cmap=plt.cm.coolwarm,
                                     norm=plt.Normalize(vmin=t_low,
                                     vmax=t_high))
@@ -282,7 +282,7 @@ class SedonaModel:
             plt.ylabel("Specific Flux (erg/s/cm$^2$/Hz)",fontsize=14)
 
         for q in range(len(ts)):
-            plt.errorbar(Xs,self.getSpec(ts[q],mode,angle=angle)[0],color=colors[q],label="t = " + str(ts[q]) + " days",linestyle=style)
+            plt.errorbar(Xs,self.getSpec(ts[q],mode,angle=angle,symmetric=symmetric)[0],color=colors[q],label="t = " + str(ts[q]) + " days",linestyle=style)
         plt.xscale('log')
         plt.colorbar(sm,location='right')#,label='Days since Merger')
         y_low, y_high = plt.ylim()
@@ -291,7 +291,7 @@ class SedonaModel:
 
         plt.ylim(y_low,y_high)
         
-    def plotAngleSeriesSpec(self,t_obs=5,mode='lam',symmetric=False):
+    def plotAngleSeriesSpec(self,t_obs=5,mode='lam',symmetric=False,style='-'):
     
         if symmetric:
             angle_max = 90
@@ -316,7 +316,7 @@ class SedonaModel:
 
         for q in n_mu:
             Y = self.getSpec(time=t_obs,angle=np.arccos(self.mu[q])*180/np.pi,mode=mode,symmetric=symmetric)[0]
-            plt.errorbar(Xs,Y,color=sm.to_rgba(np.arccos(self.mu[q])*180/np.pi),label=round(np.arccos(self.mu[q])*180/np.pi,0))
+            plt.errorbar(Xs,Y,color=sm.to_rgba(np.arccos(self.mu[q])*180/np.pi),label=round(np.arccos(self.mu[q])*180/np.pi,0),linestyle=style)
 
         
 class TwoComponent(SedonaModel):
