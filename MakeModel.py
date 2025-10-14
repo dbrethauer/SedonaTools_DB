@@ -12,7 +12,7 @@ class Model:
     def __init__(self,Z_inc=np.array([1]),A_inc=np.array([1]),time=0.25*days):
         self.temp = np.array([])
         self.rho = np.array([])
-        self.Z = Z_inc
+        self.Z = Z_inc #Zs must be in increasing order!!!!!!
         self.A = A_inc
         self.erad = np.array([])
         self.comp = np.array([])
@@ -32,8 +32,35 @@ class Model:
         total = np.sum(self.comp,axis=-1)
         self.X_lan = totalLan/total
         
-    def addDensityProfile(self):
-        return 1
+    def setXlan(self,Xlan):
+        self.findXlan()
+        if type(Xlan) == float:
+            fullZs = np.broadcast_to(self.Z,np.shape(self.rho)+(len(self.Z),))
+            fullXlans = np.repeat(self.X_lan[...,np.newaxis],len(self.Z),axis=-1)
+            coeffs = np.where((fullZs>=58)&(fullZs<=71),Xlan/fullXlans,(1-Xlan)/(1-fullXlans))
+            self.comp = coeffs*self.comp
+        elif np.shape(Xlan) == np.shape(self.rho):
+            fullZs = np.broadcast_to(self.Z,np.shape(self.rho)+(len(self.Z),))
+            fullXlans = np.repeat(self.X_lan[...,np.newaxis],len(self.Z),axis=-1)
+            fullXlanGoals = np.repeat(Xlan[...,np.newaxis],len(self.Z),axis=-1)
+            coeffs = np.where((fullZs>=58)&(fullZs<=71),fullXlanGoals/fullXlans,(1-fullXlanGoals)/(1-fullXlans))
+            self.comp = coeffs*self.comp
+            
+        else:
+            raise Exception("Incompatible Xlan input")
+            
+        self.findXlan()
+
+        
+    def setComp(self,NewXs):
+        if np.shape(NewXs) == np.shape(self.Z):
+            self.comp[...,:] = NewXs
+        elif np.shape(NewXs) == np.shape(self.comp):
+            self.comp = NewXs
+        else:
+            raise Exception("Incompatible composition input")
+        self.findXlan()
+
         
     def setTemp(self,use_rproc=True,temps=None):
         if use_rproc:
@@ -45,21 +72,22 @@ class Model:
             if not np.shape(temps) == np.shape(self.temps):
                 raise Exception("Temperature arrays do not match! Try again!")
             self.temp = temps
+            
+    def addDensityProfile(self):
+        return 1
 
 class Model1D(Model):
     def __init__(self,n_zone=80,Z_inc=np.array([1]),A_inc=np.array([1]),time=0.25*days,rmin=0):
         super().__init__(Z_inc=Z_inc,A_inc=A_inc,time=time)
         self.temp = np.zeros(n_zone)
         self.rho = np.zeros(n_zone)
-        self.comp = np.zeros((n_zone,len(self.Z)))
+        self.comp = np.ones((n_zone,len(self.Z)))
         self.erad = np.zeros(n_zone)
         self.X_rproc = np.zeros(n_zone)
         self.n_zone = n_zone
         self.volume = np.zeros(n_zone)
         self.rmin = rmin
         
-        
-    
     def setProperties(self,mass=None,Xlan=None,vk=None):
         self.setMass(mass=mass)
         self.setXlan(Xlan=Xlan)
@@ -67,16 +95,12 @@ class Model1D(Model):
     
     def setMass(self,mass):
         self.mass = mass
-    def setXlan(self,Xlan):
-        return 1
+        
     def setVel(self,vk):
         self.v = vk
         if vk >= 1:
             print("This is in units of c, did you forget?")
-            
-
-            
-            
+        
     def setVol(self):
         for i in range(self.n_zone):
             if i != 0:
