@@ -26,6 +26,7 @@ class Model:
         self.days = 24*60*60
         self.arad   = 7.5657e-15
         self.volumes = np.array([])
+        self.singleXlan = None
         
     def findXlan(self):
         totalLan = np.sum(self.comp[...,self.lan_ind0:self.lan_ind1],axis=-1)
@@ -35,6 +36,7 @@ class Model:
     def setXlan(self,Xlan):
         self.findXlan()
         if type(Xlan) == float:
+            self.singleXlan = Xlan
             fullZs = np.broadcast_to(self.Z,np.shape(self.rho)+(len(self.Z),))
             fullXlans = np.repeat(self.X_lan[...,np.newaxis],len(self.Z),axis=-1)
             coeffs = np.where((fullZs>=58)&(fullZs<=71),Xlan/fullXlans,(1-Xlan)/(1-fullXlans))
@@ -72,6 +74,14 @@ class Model:
             if not np.shape(temps) == np.shape(self.temps):
                 raise Exception("Temperature arrays do not match! Try again!")
             self.temp = temps
+            
+    def setXrproc(self,Xrproc):
+        if np.shape(Xrproc) == np.shape(self.rho):
+            self.X_rproc = Xrproc
+        elif type(Xrproc) == float or float(Xrproc) == int(Xrproc):
+            self.X_rproc = Xrproc*np.ones(np.shape(self.rho))
+        else:
+            raise Exception("Incompatible Xrproc input")
             
     def addDensityProfile(self):
         return 1
@@ -133,7 +143,7 @@ class Model1D(Model):
         
         self.setTemp(use_rproc=use_rproc)
         
-    def ConstantDensity(self,vmax=0.3*2.998*10**10,use_rproc=True):
+    def ConstantDensity(self,vmax=0.3*2.998*10**10,v_cut=0.3*2.998*10**10,use_rproc=True):
         self.vmax = vmax
         if self.vmax > self.c:
             raise Exception("Warning: maximum velocity is greater than c!")
@@ -144,11 +154,39 @@ class Model1D(Model):
         
         self.setVol()
         
-        self.rho = self.mass*self.m_sun/(4/3*np.pi*self.time*self.vmax)**3*np.ones(self.n_zone)
+        self.rho = np.where(self.vx<v_cut,self.mass*self.m_sun/(4/3*np.pi*self.time*v_cut)**3*np.ones(self.n_zone),1E-20)
         totalMass = np.sum(self.rho*self.volume)
         self.rho *= (self.mass*self.m_sun)/totalMass
         
         self.setTemp(use_rproc=use_rproc)
+        
+    def writeh5(self,name,use_rproc=True):
+        if use_rproc:
+            fout = h5py.File(name + "_"+"{:.0E}".format(self.singleXlan)+'X_lan_' + str(self.v)+"v" +"_" + "{:.1E}".format(self.mass) + 'M' + '_1D.h5','w')
+            fout.create_dataset('time',data=[self.texp],dtype='d')
+            fout.create_dataset('Z',data=self.Z,dtype='i')
+            fout.create_dataset('A',data=self.A,dtype='i')
+            fout.create_dataset('rho',data=self.rho,dtype='d')
+            fout.create_dataset('temp',data=self.temp,dtype='d')
+            fout.create_dataset('v',data=self.vx,dtype='d')
+            fout.create_dataset('Xrproc',data=self.X_rproc,dtype='d')
+            fout.create_dataset('comp',data=self.comp,dtype='d')
+            fout.create_dataset('r_out',data=self.vx*self.time,dtype='d')
+            fout.create_dataset('r_min',data=[self.rmin],dtype='d')
+            fout.create_dataset('erad',data=self.erad,dtype='d')
+        else:
+            fout = h5py.File(name + "_" + str(self.v)+"v" +"_" + "{:.1E}".format(self.mass) + 'M' + '_1D.h5','w')
+            fout.create_dataset('time',data=[self.texp],dtype='d')
+            fout.create_dataset('Z',data=self.Z,dtype='i')
+            fout.create_dataset('A',data=self.A,dtype='i')
+            fout.create_dataset('rho',data=self.rho,dtype='d')
+            fout.create_dataset('temp',data=self.temp,dtype='d')
+            fout.create_dataset('v',data=self.vx,dtype='d')
+            fout.create_dataset('Xrproc',data=self.X_rproc,dtype='d')
+            fout.create_dataset('comp',data=self.comp,dtype='d')
+            fout.create_dataset('r_out',data=self.vx*self.time,dtype='d')
+            fout.create_dataset('r_min',data=[self.rmin],dtype='d')
+            fout.create_dataset('erad',data=self.erad,dtype='d')
         
         
         
