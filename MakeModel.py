@@ -4,8 +4,8 @@ import matplotlib.pyplot as plt
 
 
 
-texp   = 0.25*days         # time since explosion in days
-fd     = 1 #fraction of 
+days = 60*60*24        # days conversion to seconds
+fd     = 1 #fraction of
 lf = 0.01 #lanthanide fraction
 
 class Model:
@@ -163,7 +163,7 @@ class Model1D(Model):
     def writeh5(self,name,use_rproc=True):
         if use_rproc:
             fout = h5py.File(name + "_"+"{:.0E}".format(self.singleXlan)+'X_lan_' + str(self.v)+"v" +"_" + "{:.1E}".format(self.mass) + 'M' + '_1D.h5','w')
-            fout.create_dataset('time',data=[self.texp],dtype='d')
+            fout.create_dataset('time',data=[self.time],dtype='d')
             fout.create_dataset('Z',data=self.Z,dtype='i')
             fout.create_dataset('A',data=self.A,dtype='i')
             fout.create_dataset('rho',data=self.rho,dtype='d')
@@ -176,7 +176,7 @@ class Model1D(Model):
             fout.create_dataset('erad',data=self.erad,dtype='d')
         else:
             fout = h5py.File(name + "_" + str(self.v)+"v" +"_" + "{:.1E}".format(self.mass) + 'M' + '_1D.h5','w')
-            fout.create_dataset('time',data=[self.texp],dtype='d')
+            fout.create_dataset('time',data=[self.time],dtype='d')
             fout.create_dataset('Z',data=self.Z,dtype='i')
             fout.create_dataset('A',data=self.A,dtype='i')
             fout.create_dataset('rho',data=self.rho,dtype='d')
