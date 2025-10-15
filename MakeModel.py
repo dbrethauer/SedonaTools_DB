@@ -98,10 +98,11 @@ class Model1D(Model):
         self.volume = np.zeros(n_zone)
         self.rmin = rmin
         
-    def setProperties(self,mass=None,Xlan=None,vk=None):
+    def setProperties(self,mass=None,Xlan=None,vk=None,use_rproc=True):
         self.setMass(mass=mass)
-        self.setXlan(Xlan=Xlan)
         self.setVel(vk=vk)
+        if use_rproc:
+            self.setXlan(Xlan=Xlan)
     
     def setMass(self,mass):
         self.mass = mass
@@ -155,8 +156,8 @@ class Model1D(Model):
         self.setVol()
         
         self.rho = np.where(self.vx<v_cut,self.mass*self.m_sun/(4/3*np.pi*self.time*v_cut)**3*np.ones(self.n_zone),1E-20)
-        totalMass = np.sum(self.rho*self.volume)
-        self.rho *= (self.mass*self.m_sun)/totalMass
+        totalMass = np.sum(self.rho[self.vx<v_cut]*self.volume[self.vx<v_cut])
+        self.rho[self.vx<v_cut] *= (self.mass*self.m_sun)/totalMass
         
         self.setTemp(use_rproc=use_rproc)
         
