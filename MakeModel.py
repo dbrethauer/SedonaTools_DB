@@ -84,15 +84,25 @@ class Model:
         else:
             raise Exception("Incompatible Xrproc input")
             
-    def addDensityProfile(self, rhos, Xs):
-        comp_by_rho = np.repeat(rhos[...,np.newaxis],len(self.Z),axis=-1)
-        current_comp_by_rho = np.repeat(self.rho[...,np.newaxis],len(self.Z),axis=-1)
-        total_comp_by_rho = current_comp_by_rho+comp_by_rho
+    def addDensityProfile(self, rhos, Xs,overrideRho=False,overrideComp=False):
+    
+    
+        if overrideComp:
+            bools = np.where(rhos>self.rho,True,False)
+            self.comp[bools] = Xs
         
-        self.comp = (comp_by_rho*Xs+current_comp_by_rho*self.comp)/(total_comp_by_rho)
-        self.rho = rhos+self.rho
+        else:
+            comp_by_rho = np.repeat(rhos[...,np.newaxis],len(self.Z),axis=-1)
+            current_comp_by_rho = np.repeat(self.rho[...,np.newaxis],len(self.Z),axis=-1)
+            total_comp_by_rho = current_comp_by_rho+comp_by_rho
         
-        self.rho = np.where(self.rho<=2*self.rho_min,self.rho_min,self.rho)
+            self.comp = (comp_by_rho*Xs+current_comp_by_rho*self.comp)/(total_comp_by_rho)
+        
+        if overrideRho:
+            self.rho = np.where(self.rho>rhos,self.rho,rhos)
+        else:
+            self.rho = rhos+self.rho
+            self.rho = np.where(self.rho<=2*self.rho_min,self.rho_min,self.rho)
         
         bools = np.where(self.rho==self.rho_min,True,False)
         #print(self.comp[bools])
@@ -150,7 +160,7 @@ class Model1D(Model):
         
         v_t = eta_v*velocity*self.c
         
-        if resetGrid:
+        if resetGrid or not hasattr(self, 'vx'):
             self.vmax = 3*v_t
             while self.vmax > self.c:
                 self.vmax /= 1.5
@@ -169,9 +179,9 @@ class Model1D(Model):
         return currentRho
         #self.setTemp(use_rproc=use_rproc)
         
-    def ConstantDensity(self,mass,vmax=0.3,v_cut=0.3,use_rproc=True,resetGrid=False):
+    def ConstantDensity(self,mass,vmax=0.3,v_cut=0.3,v_min=0,use_rproc=True,resetGrid=False):
         
-        if resetGrid:
+        if resetGrid or not hasattr(self, 'vx'):
             self.vmax = vmax*self.c
             if self.vmax > self.c:
                 raise Exception("Warning: maximum velocity is greater than c!")
@@ -182,9 +192,9 @@ class Model1D(Model):
         
         self.setVol()
         
-        currentRho = np.where(self.vx<v_cut*self.c,mass*self.m_sun/(4/3*np.pi*self.time*v_cut*self.c)**3*np.ones(self.n_zone),self.rho_min)
-        totalMass = np.sum(currentRho[self.vx<v_cut*self.c]*self.volume[self.vx<v_cut*self.c])
-        currentRho[self.vx<v_cut*self.c] *= (mass*self.m_sun)/totalMass
+        currentRho = np.where((self.vx<v_cut*self.c)&(self.vx>v_min*self.c),mass*self.m_sun/(4/3*np.pi*self.time*v_cut*self.c)**3*np.ones(self.n_zone),self.rho_min)
+        totalMass = np.sum(currentRho[(self.vx<v_cut*self.c)&(self.vx>v_min*self.c)]*self.volume[(self.vx<v_cut*self.c)&(self.vx>v_min*self.c)])
+        currentRho[(self.vx<v_cut*self.c)&(self.vx>v_min*self.c)] *= (mass*self.m_sun)/totalMass
         
         return currentRho
         
