@@ -98,16 +98,18 @@ class Model:
         
             self.comp = (comp_by_rho*Xs+current_comp_by_rho*self.comp)/(total_comp_by_rho)
         
+        if is_rproc:
+            self.X_rproc = (self.rho*self.X_rproc + rhos)/(self.rho+rhos)
+        else:
+            self.X_rproc = (self.rho*self.X_rproc)/(self.rho+rhos)
+        
         if overrideRho:
             self.rho = np.where(self.rho>rhos,self.rho,rhos)
         else:
             self.rho = rhos+self.rho
             self.rho = np.where(self.rho<=2*self.rho_min,self.rho_min,self.rho)
             
-        if is_rproc:
-            self.X_rproc = (self.rho*self.X_rproc + rhos)/(self.rho+rhos)
-        else:
-            self.X_rproc = (self.rho*self.X_rproc)/(self.rho+rhos)
+
         
         bools = np.where(self.rho==self.rho_min,True,False)
         #print(self.comp[bools])
