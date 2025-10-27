@@ -27,6 +27,7 @@ class Model:
         self.arad   = 7.5657e-15
         self.volumes = np.array([])
         self.singleXlan = None
+        self.rho_min = 1E-20
         
     def findXlan(self):
         totalLan = np.sum(self.comp[...,self.lan_ind0:self.lan_ind1],axis=-1)
@@ -83,8 +84,30 @@ class Model:
         else:
             raise Exception("Incompatible Xrproc input")
             
-    def addDensityProfile(self):
-        return 1
+    def addDensityProfile(self, rhos, Xs):
+        comp_by_rho = np.repeat(rhos[...,np.newaxis],len(self.Z),axis=-1)
+        current_comp_by_rho = np.repeat(self.rho[...,np.newaxis],len(self.Z),axis=-1)
+        total_comp_by_rho = current_comp_by_rho+comp_by_rho
+        
+        self.comp = (comp_by_rho*Xs+current_comp_by_rho*self.comp)/(total_comp_by_rho)
+        self.rho = rhos+self.rho
+        
+        self.rho = np.where(self.rho<=2*self.rho_min,self.rho_min,self.rho)
+        
+        bools = np.where(self.rho==self.rho_min,True,False)
+        #print(self.comp[bools])
+        self.comp[bools] = self.getNewXlan(self.comp.flatten()[:len(self.Z)],Xlan_goal=1E-9)
+        
+        self.findXlan()
+        
+        self.setTemp()
+        
+    def getNewXlan(self,Xs,Xlan_goal):
+        currentXlan = np.sum(Xs[(self.Z>=58)&(self.Z<=71)])/np.sum(Xs)
+        coeffs = np.where((self.Z>=58)&(self.Z<=71),Xlan_goal/currentXlan,(1-Xlan_goal)/(1-currentXlan))
+        return Xs*coeffs
+        
+        
 
 class Model1D(Model):
     def __init__(self,n_zone=80,Z_inc=np.array([1]),A_inc=np.array([1]),time=0.25*days,rmin=0):
@@ -119,47 +142,53 @@ class Model1D(Model):
             else:
                 self.volume[i] = 4/3*np.pi*((self.vx[i]*self.time)**3-self.rmin**3)
         
-    def BrokenPowerLaw(self,n_inner=1,n_outer=10,use_rproc=True):
+    def BrokenPowerLaw(self,mass,velocity,n_inner=1,n_outer=10,use_rproc=True,resetGrid=False):
         if n_inner == 3 or n_outer == 3 or n_inner == 5 or n_outer == 5:
             raise Exception("Warning, value of power law index not valid for this formalism!")
-        eta_rho = (4*pi*((n_inner-n_outer)/((3-n_inner)*(3-n_outer))))**-1
+        eta_rho = (4*np.pi*((n_inner-n_outer)/((3-n_inner)*(3-n_outer))))**-1
         eta_v = (((5-n_inner)*(5-n_outer))/((3-n_inner)*(3-n_outer)))**0.5
         
-        v_t = eta_v*self.v*self.c
+        v_t = eta_v*velocity*self.c
         
-        self.vmax = 3*v_t
-        while self.vmax > self.c:
-            self.vmax /= 1.5
+        if resetGrid:
+            self.vmax = 3*v_t
+            while self.vmax > self.c:
+                self.vmax /= 1.5
         
-        self.rmax = self.time*self.vmax
-        self.dr   = self.rmax/(1.0*self.n_zone)
-        self.dv   = self.vmax/(1.0*self.n_zone)
-        self.vx   = np.arange(self.dv,self.vmax+0.1,self.dv)
-        
-        self.setVol()
-        
-        self.rho = eta_rho*(self.mass*self.m_sun)/(v_t*self.time)**3*np.where(self.vx<v_t,((self.vx-self.dv/2)/v_t)**(-1*n_inner),((self.vx-self.dv/2)/v_t)**(-1*n_outer))
-        totalMass = np.sum(self.rho*self.volume)
-        self.rho *= (self.mass*self.m_sun)/totalMass
-        
-        self.setTemp(use_rproc=use_rproc)
-        
-    def ConstantDensity(self,vmax=0.3*2.998*10**10,v_cut=0.3*2.998*10**10,use_rproc=True):
-        self.vmax = vmax
-        if self.vmax > self.c:
-            raise Exception("Warning: maximum velocity is greater than c!")
-        self.rmax = self.time*self.vmax
-        self.dr   = self.rmax/(1.0*self.n_zone)
-        self.dv   = self.vmax/(1.0*self.n_zone)
-        self.vx   = np.arange(self.dv,self.vmax+0.1,self.dv)
+            self.rmax = self.time*self.vmax
+            self.dr   = self.rmax/(1.0*self.n_zone)
+            self.dv   = self.vmax/(1.0*self.n_zone)
+            self.vx   = np.arange(self.dv,self.vmax+0.1,self.dv)
         
         self.setVol()
         
-        self.rho = np.where(self.vx<v_cut,self.mass*self.m_sun/(4/3*np.pi*self.time*v_cut)**3*np.ones(self.n_zone),1E-20)
-        totalMass = np.sum(self.rho[self.vx<v_cut]*self.volume[self.vx<v_cut])
-        self.rho[self.vx<v_cut] *= (self.mass*self.m_sun)/totalMass
+        currentRho = eta_rho*(mass*self.m_sun)/(v_t*self.time)**3*np.where(self.vx<v_t,((self.vx-self.dv/2)/v_t)**(-1*n_inner),((self.vx-self.dv/2)/v_t)**(-1*n_outer))
+        totalMass = np.sum(currentRho*self.volume)
+        currentRho *= (mass*self.m_sun)/totalMass
         
-        self.setTemp(use_rproc=use_rproc)
+        return currentRho
+        #self.setTemp(use_rproc=use_rproc)
+        
+    def ConstantDensity(self,mass,vmax=0.3,v_cut=0.3,use_rproc=True,resetGrid=False):
+        
+        if resetGrid:
+            self.vmax = vmax*self.c
+            if self.vmax > self.c:
+                raise Exception("Warning: maximum velocity is greater than c!")
+            self.rmax = self.time*self.vmax
+            self.dr   = self.rmax/(1.0*self.n_zone)
+            self.dv   = self.vmax/(1.0*self.n_zone)
+            self.vx   = np.arange(self.dv,self.vmax+0.1,self.dv)
+        
+        self.setVol()
+        
+        currentRho = np.where(self.vx<v_cut*self.c,mass*self.m_sun/(4/3*np.pi*self.time*v_cut*self.c)**3*np.ones(self.n_zone),self.rho_min)
+        totalMass = np.sum(currentRho[self.vx<v_cut*self.c]*self.volume[self.vx<v_cut*self.c])
+        currentRho[self.vx<v_cut*self.c] *= (mass*self.m_sun)/totalMass
+        
+        return currentRho
+        
+        #self.setTemp(use_rproc=use_rproc)
         
     def writeh5(self,name,use_rproc=True):
         if use_rproc:
