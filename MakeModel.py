@@ -84,7 +84,7 @@ class Model:
         else:
             raise Exception("Incompatible Xrproc input")
             
-    def addDensityProfile(self, rhos, Xs,overrideRho=False,overrideComp=False):
+    def addDensityProfile(self, rhos, Xs,overrideRho=False,overrideComp=False,is_rproc=True):
     
     
         if overrideComp:
@@ -103,6 +103,11 @@ class Model:
         else:
             self.rho = rhos+self.rho
             self.rho = np.where(self.rho<=2*self.rho_min,self.rho_min,self.rho)
+            
+        if is_rproc:
+            self.X_rproc = (self.rho*self.X_rproc + rhos)/(self.rho+rhos)
+        else:
+            self.X_rproc = (self.rho*self.X_rproc)/(self.rho+rhos)
         
         bools = np.where(self.rho==self.rho_min,True,False)
         #print(self.comp[bools])
