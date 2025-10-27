@@ -124,6 +124,11 @@ class Model:
         coeffs = np.where((self.Z>=58)&(self.Z<=71),Xlan_goal/currentXlan,(1-Xlan_goal)/(1-currentXlan))
         return Xs*coeffs
         
+    def getNeutronComp(self):
+        neutrons = np.zeros(len(self.Z))
+        neutrons[np.searchsorted(self.Z,0)] = 1.0
+        return neutrons
+        
         
 
 class Model1D(Model):
@@ -158,8 +163,17 @@ class Model1D(Model):
                 self.volume[i] = 4/3*np.pi*((self.vx[i]*self.time)**3-(self.vx[i-1]*self.time)**3)
             else:
                 self.volume[i] = 4/3*np.pi*((self.vx[i]*self.time)**3-self.rmin**3)
+                
+    def setGrid(self,v_max):
+        if v_max >= 1:
+            raise Exception("Trying to set maximum velocity higher than the speed of light!")
+        self.vmax = v_max*self.c
+        self.rmax = self.time*self.vmax
+        self.dr   = self.rmax/(1.0*self.n_zone)
+        self.dv   = self.vmax/(1.0*self.n_zone)
+        self.vx   = np.arange(self.dv,self.vmax+0.1,self.dv)
         
-    def BrokenPowerLaw(self,mass,velocity,n_inner=1,n_outer=10,use_rproc=True,resetGrid=False):
+    def BrokenPowerLaw(self,mass,velocity,n_inner=1,n_outer=10,use_rproc=True,resetGrid=False,v_min=0,v_max=1):
         if n_inner == 3 or n_outer == 3 or n_inner == 5 or n_outer == 5:
             raise Exception("Warning, value of power law index not valid for this formalism!")
         eta_rho = (4*np.pi*((n_inner-n_outer)/((3-n_inner)*(3-n_outer))))**-1
@@ -171,15 +185,13 @@ class Model1D(Model):
             self.vmax = 3*v_t
             while self.vmax > self.c:
                 self.vmax /= 1.5
-        
-            self.rmax = self.time*self.vmax
-            self.dr   = self.rmax/(1.0*self.n_zone)
-            self.dv   = self.vmax/(1.0*self.n_zone)
-            self.vx   = np.arange(self.dv,self.vmax+0.1,self.dv)
+                
+            self.setGrid(self.vmax)
         
         self.setVol()
         
         currentRho = eta_rho*(mass*self.m_sun)/(v_t*self.time)**3*np.where(self.vx<v_t,((self.vx-self.dv/2)/v_t)**(-1*n_inner),((self.vx-self.dv/2)/v_t)**(-1*n_outer))
+        currentRho = np.where((self.vx>v_min*self.c)&(self.vx<v_max*self.c),currentRho,self.rho_min)
         totalMass = np.sum(currentRho*self.volume)
         currentRho *= (mass*self.m_sun)/totalMass
         
@@ -190,12 +202,7 @@ class Model1D(Model):
         
         if resetGrid or not hasattr(self, 'vx'):
             self.vmax = vmax*self.c
-            if self.vmax > self.c:
-                raise Exception("Warning: maximum velocity is greater than c!")
-            self.rmax = self.time*self.vmax
-            self.dr   = self.rmax/(1.0*self.n_zone)
-            self.dv   = self.vmax/(1.0*self.n_zone)
-            self.vx   = np.arange(self.dv,self.vmax+0.1,self.dv)
+            self.setGrid(self.vmax)
         
         self.setVol()
         
@@ -207,9 +214,22 @@ class Model1D(Model):
         
         #self.setTemp(use_rproc=use_rproc)
         
-    def writeh5(self,name,use_rproc=True):
+    def writeh5(self,name,use_rproc=True,overrideName=False):
         if use_rproc:
             fout = h5py.File(name + "_"+"{:.0E}".format(self.singleXlan)+'X_lan_' + str(self.v)+"v" +"_" + "{:.1E}".format(self.mass) + 'M' + '_1D.h5','w')
+            fout.create_dataset('time',data=[self.time],dtype='d')
+            fout.create_dataset('Z',data=self.Z,dtype='i')
+            fout.create_dataset('A',data=self.A,dtype='i')
+            fout.create_dataset('rho',data=self.rho,dtype='d')
+            fout.create_dataset('temp',data=self.temp,dtype='d')
+            fout.create_dataset('v',data=self.vx,dtype='d')
+            fout.create_dataset('Xrproc',data=self.X_rproc,dtype='d')
+            fout.create_dataset('comp',data=self.comp,dtype='d')
+            fout.create_dataset('r_out',data=self.vx*self.time,dtype='d')
+            fout.create_dataset('r_min',data=[self.rmin],dtype='d')
+            fout.create_dataset('erad',data=self.erad,dtype='d')
+        elif overrideName:
+            fout = h5py.File(name + '_1D.h5','w')
             fout.create_dataset('time',data=[self.time],dtype='d')
             fout.create_dataset('Z',data=self.Z,dtype='i')
             fout.create_dataset('A',data=self.A,dtype='i')
