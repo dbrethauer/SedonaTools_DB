@@ -28,6 +28,7 @@ class Model:
         self.volumes = np.array([])
         self.singleXlan = None
         self.rho_min = 1E-20
+        self.grey_opacity = np.array([])
         
     def findXlan(self):
         totalLan = np.sum(self.comp[...,self.lan_ind0:self.lan_ind1],axis=-1)
@@ -142,6 +143,7 @@ class Model1D(Model):
         self.n_zone = n_zone
         self.volume = np.zeros(n_zone)
         self.rmin = rmin
+        self.grey_opacity = np.zeros(n_zone)
         
     def setProperties(self,mass=None,Xlan=None,vk=None,use_rproc=True):
         self.setMass(mass=mass)
@@ -173,7 +175,7 @@ class Model1D(Model):
         self.dv   = self.vmax/(1.0*self.n_zone)
         self.vx   = np.arange(self.dv,self.vmax+0.1,self.dv)
         
-    def BrokenPowerLaw(self,mass,velocity,n_inner=1,n_outer=10,use_rproc=True,resetGrid=False,v_min=0,v_max=1):
+    def BrokenPowerLaw(self,mass,velocity,n_inner=1,n_outer=10,resetGrid=False,v_min=0,v_max=1):
         if n_inner == 3 or n_outer == 3 or n_inner == 5 or n_outer == 5:
             raise Exception("Warning, value of power law index not valid for this formalism!")
         eta_rho = (4*np.pi*((n_inner-n_outer)/((3-n_inner)*(3-n_outer))))**-1
@@ -186,11 +188,12 @@ class Model1D(Model):
             while self.vmax > self.c:
                 self.vmax /= 1.5
                 
-            self.setGrid(self.vmax)
+            self.setGrid(self.vmax/self.c)
         
         self.setVol()
         
-        currentRho = eta_rho*(mass*self.m_sun)/(v_t*self.time)**3*np.where(self.vx<v_t,((self.vx-self.dv/2)/v_t)**(-1*n_inner),((self.vx-self.dv/2)/v_t)**(-1*n_outer))
+        #currentRho = eta_rho*(mass*self.m_sun)/(v_t*self.time)**3*np.where(self.vx<=v_t,((self.vx-self.dv/2)/v_t)**(-1*n_inner),((self.vx-self.dv/2)/v_t)**(-1*n_outer))
+        currentRho = eta_rho*(mass*self.m_sun)/(v_t*self.time)**3*np.where(self.vx<=v_t,((self.vx)/v_t)**(-1*n_inner),((self.vx)/v_t)**(-1*n_outer))
         currentRho = np.where((self.vx>v_min*self.c)&(self.vx<v_max*self.c),currentRho,self.rho_min)
         totalMass = np.sum(currentRho*self.volume)
         currentRho *= (mass*self.m_sun)/totalMass
@@ -198,11 +201,11 @@ class Model1D(Model):
         return currentRho
         #self.setTemp(use_rproc=use_rproc)
         
-    def ConstantDensity(self,mass,vmax=0.3,v_cut=0.3,v_min=0,use_rproc=True,resetGrid=False):
+    def ConstantDensity(self,mass,vmax=0.3,v_cut=0.3,v_min=0,resetGrid=False):
         
         if resetGrid or not hasattr(self, 'vx'):
             self.vmax = vmax*self.c
-            self.setGrid(self.vmax)
+            self.setGrid(self.vmax/self.c)
         
         self.setVol()
         
@@ -214,21 +217,28 @@ class Model1D(Model):
         
         #self.setTemp(use_rproc=use_rproc)
         
+    def PowerLaw(self,mass,velocity,index=4,vmax=0.3,v_min=1E-1,resetGrid=False):
+        if resetGrid or not hasattr(self, 'vx'):
+            self.vmax = vmax*self.c
+            self.setGrid(self.vmax/self.c)
+        
+        self.setVol()
+        
+        #if index == 3:
+        v_cut = (1/self.c)*((5-index)/(3-index)*(velocity*self.c)**2+(v_min*self.c)**(5-index))**(1/(5-index))
+        eta_rho = np.abs(mass*self.m_sun*(3-index)/(4*np.pi*self.time**3)*((v_cut*self.c)**(index-3)-(v_min*self.c)**(index-3)))
+        
+        print(v_cut,eta_rho)
+            
+        
+        currentRho = np.where((self.vx<v_cut*self.c)&(self.vx>v_min*self.c),eta_rho*(self.vx/v_min/self.c)**(-index),self.rho_min)
+        
+        totalMass = np.sum(currentRho[(self.vx<v_cut*self.c)&(self.vx>v_min*self.c)]*self.volume[(self.vx<v_cut*self.c)&(self.vx>v_min*self.c)])
+        currentRho[(self.vx<v_cut*self.c)&(self.vx>v_min*self.c)] *= (mass*self.m_sun)/totalMass
+        return currentRho
+        
     def writeh5(self,name,use_rproc=True,overrideName=False):
-        if use_rproc:
-            fout = h5py.File(name + "_"+"{:.0E}".format(self.singleXlan)+'X_lan_' + str(self.v)+"v" +"_" + "{:.1E}".format(self.mass) + 'M' + '_1D.h5','w')
-            fout.create_dataset('time',data=[self.time],dtype='d')
-            fout.create_dataset('Z',data=self.Z,dtype='i')
-            fout.create_dataset('A',data=self.A,dtype='i')
-            fout.create_dataset('rho',data=self.rho,dtype='d')
-            fout.create_dataset('temp',data=self.temp,dtype='d')
-            fout.create_dataset('v',data=self.vx,dtype='d')
-            fout.create_dataset('Xrproc',data=self.X_rproc,dtype='d')
-            fout.create_dataset('comp',data=self.comp,dtype='d')
-            fout.create_dataset('r_out',data=self.vx*self.time,dtype='d')
-            fout.create_dataset('r_min',data=[self.rmin],dtype='d')
-            fout.create_dataset('erad',data=self.erad,dtype='d')
-        elif overrideName:
+        if overrideName:
             fout = h5py.File(name + '_1D.h5','w')
             fout.create_dataset('time',data=[self.time],dtype='d')
             fout.create_dataset('Z',data=self.Z,dtype='i')
@@ -241,6 +251,20 @@ class Model1D(Model):
             fout.create_dataset('r_out',data=self.vx*self.time,dtype='d')
             fout.create_dataset('r_min',data=[self.rmin],dtype='d')
             fout.create_dataset('erad',data=self.erad,dtype='d')
+        elif use_rproc:
+            fout = h5py.File(name + "_"+"{:.0E}".format(self.singleXlan)+'X_lan_' + str(self.v)+"v" +"_" + "{:.1E}".format(self.mass) + 'M' + '_1D.h5','w')
+            fout.create_dataset('time',data=[self.time],dtype='d')
+            fout.create_dataset('Z',data=self.Z,dtype='i')
+            fout.create_dataset('A',data=self.A,dtype='i')
+            fout.create_dataset('rho',data=self.rho,dtype='d')
+            fout.create_dataset('temp',data=self.temp,dtype='d')
+            fout.create_dataset('v',data=self.vx,dtype='d')
+            fout.create_dataset('Xrproc',data=self.X_rproc,dtype='d')
+            fout.create_dataset('comp',data=self.comp,dtype='d')
+            fout.create_dataset('r_out',data=self.vx*self.time,dtype='d')
+            fout.create_dataset('r_min',data=[self.rmin],dtype='d')
+            fout.create_dataset('erad',data=self.erad,dtype='d')
+
         else:
             fout = h5py.File(name + "_" + str(self.v)+"v" +"_" + "{:.1E}".format(self.mass) + 'M' + '_1D.h5','w')
             fout.create_dataset('time',data=[self.time],dtype='d')
@@ -254,6 +278,9 @@ class Model1D(Model):
             fout.create_dataset('r_out',data=self.vx*self.time,dtype='d')
             fout.create_dataset('r_min',data=[self.rmin],dtype='d')
             fout.create_dataset('erad',data=self.erad,dtype='d')
+            
+        if (self.grey_opacity != np.zeros(self.n_zone)).all():
+            fout.create_dataset('grey_opacity',data=self.grey_opacity,dtype='d')
         
         
         
