@@ -217,7 +217,7 @@ class Model1D(Model):
         
         #self.setTemp(use_rproc=use_rproc)
         
-    def PowerLaw(self,mass,velocity,index=4,vmax=0.3,v_min=1E-1,resetGrid=False):
+    def PowerLaw(self,mass,index=4,vmax=0.3,v_cut=0.3,v_min=1E-1,resetGrid=False):
         if resetGrid or not hasattr(self, 'vx'):
             self.vmax = vmax*self.c
             self.setGrid(self.vmax/self.c)
@@ -225,13 +225,13 @@ class Model1D(Model):
         self.setVol()
         
         #if index == 3:
-        v_cut = (1/self.c)*((5-index)/(3-index)*(velocity*self.c)**2+(v_min*self.c)**(5-index))**(1/(5-index))
-        eta_rho = np.abs(mass*self.m_sun*(3-index)/(4*np.pi*self.time**3)*((v_cut*self.c)**(index-3)-(v_min*self.c)**(index-3)))
+        #v_cut = (1/self.c)*((5-index)/(3-index)*(velocity*self.c)**2+(v_min*self.c)**(5-index))**(1/(5-index))
+        #eta_rho = np.abs(mass*self.m_sun*(3-index)/(4*np.pi*self.time**3)*((v_cut*self.c)**(index-3)-(v_min*self.c)**(index-3)))
         
-        print(v_cut,eta_rho)
+        #print(v_cut,eta_rho)
             
         
-        currentRho = np.where((self.vx<v_cut*self.c)&(self.vx>v_min*self.c),eta_rho*(self.vx/v_min/self.c)**(-index),self.rho_min)
+        currentRho = np.where((self.vx<v_cut*self.c)&(self.vx>v_min*self.c),(self.vx/v_min/self.c)**(-index),self.rho_min)
         
         totalMass = np.sum(currentRho[(self.vx<v_cut*self.c)&(self.vx>v_min*self.c)]*self.volume[(self.vx<v_cut*self.c)&(self.vx>v_min*self.c)])
         currentRho[(self.vx<v_cut*self.c)&(self.vx>v_min*self.c)] *= (mass*self.m_sun)/totalMass
