@@ -446,6 +446,22 @@ class Model2D(Model):
             grande = max(np.max(self.vz),np.max(self.vx))
             plt.ylim(-1*grande/self.c,grande/self.c)
             plt.xlim(-1*grande/self.c,grande/self.c)
+            
+    def GaussXlan(self,X0=None,X1=None,sig=None):
+        if X0<=X1:
+            print('Did you mean to have higher polar Xlan?')
+        return X1+(X0-X1)*np.exp(-1*(self.angles/(np.sqrt(2)*sig*np.pi/180))**2)
+
+    def StepXlan(self,X0=None,X1=None,sig=None):
+        if X0<=X1:
+            print('Did you mean to have higher polar Xlan?')
+        return np.where(np.abs(self.angles)<=sig*np.pi/180,X0,X1)
+
+    def SmoothXlan(self,X0=None,X1=None,sig=None,n=12):
+        if X0<=X1:
+            print('Did you mean to have higher polar Xlan?')
+        return X1+(X0-X1)*(np.abs(self.angles/(sig*np.pi/180))**n+1)**-1
+
 
     
         
