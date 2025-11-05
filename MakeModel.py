@@ -240,44 +240,22 @@ class Model1D(Model):
     def writeh5(self,name,use_rproc=True,overrideName=False):
         if overrideName:
             fout = h5py.File(name + '_1D.h5','w')
-            fout.create_dataset('time',data=[self.time],dtype='d')
-            fout.create_dataset('Z',data=self.Z,dtype='i')
-            fout.create_dataset('A',data=self.A,dtype='i')
-            fout.create_dataset('rho',data=self.rho,dtype='d')
-            fout.create_dataset('temp',data=self.temp,dtype='d')
-            fout.create_dataset('v',data=self.vx,dtype='d')
-            fout.create_dataset('Xrproc',data=self.X_rproc,dtype='d')
-            fout.create_dataset('comp',data=self.comp,dtype='d')
-            fout.create_dataset('r_out',data=self.vx*self.time,dtype='d')
-            fout.create_dataset('r_min',data=[self.rmin],dtype='d')
-            fout.create_dataset('erad',data=self.erad,dtype='d')
         elif use_rproc:
             fout = h5py.File(name + "_"+"{:.0E}".format(self.singleXlan)+'X_lan_' + str(self.v)+"v" +"_" + "{:.1E}".format(self.mass) + 'M' + '_1D.h5','w')
-            fout.create_dataset('time',data=[self.time],dtype='d')
-            fout.create_dataset('Z',data=self.Z,dtype='i')
-            fout.create_dataset('A',data=self.A,dtype='i')
-            fout.create_dataset('rho',data=self.rho,dtype='d')
-            fout.create_dataset('temp',data=self.temp,dtype='d')
-            fout.create_dataset('v',data=self.vx,dtype='d')
-            fout.create_dataset('Xrproc',data=self.X_rproc,dtype='d')
-            fout.create_dataset('comp',data=self.comp,dtype='d')
-            fout.create_dataset('r_out',data=self.vx*self.time,dtype='d')
-            fout.create_dataset('r_min',data=[self.rmin],dtype='d')
-            fout.create_dataset('erad',data=self.erad,dtype='d')
-
         else:
             fout = h5py.File(name + "_" + str(self.v)+"v" +"_" + "{:.1E}".format(self.mass) + 'M' + '_1D.h5','w')
-            fout.create_dataset('time',data=[self.time],dtype='d')
-            fout.create_dataset('Z',data=self.Z,dtype='i')
-            fout.create_dataset('A',data=self.A,dtype='i')
-            fout.create_dataset('rho',data=self.rho,dtype='d')
-            fout.create_dataset('temp',data=self.temp,dtype='d')
-            fout.create_dataset('v',data=self.vx,dtype='d')
-            fout.create_dataset('Xrproc',data=self.X_rproc,dtype='d')
-            fout.create_dataset('comp',data=self.comp,dtype='d')
-            fout.create_dataset('r_out',data=self.vx*self.time,dtype='d')
-            fout.create_dataset('r_min',data=[self.rmin],dtype='d')
-            fout.create_dataset('erad',data=self.erad,dtype='d')
+            
+        fout.create_dataset('time',data=[self.time],dtype='d')
+        fout.create_dataset('Z',data=self.Z,dtype='i')
+        fout.create_dataset('A',data=self.A,dtype='i')
+        fout.create_dataset('rho',data=self.rho,dtype='d')
+        fout.create_dataset('temp',data=self.temp,dtype='d')
+        fout.create_dataset('v',data=self.vx,dtype='d')
+        fout.create_dataset('Xrproc',data=self.X_rproc,dtype='d')
+        fout.create_dataset('comp',data=self.comp,dtype='d')
+        fout.create_dataset('r_out',data=self.vx*self.time,dtype='d')
+        fout.create_dataset('r_min',data=[self.rmin],dtype='d')
+        fout.create_dataset('erad',data=self.erad,dtype='d')
             
         if (self.grey_opacity != np.zeros(self.n_zone)).all():
             fout.create_dataset('grey_opacity',data=self.grey_opacity,dtype='d')
@@ -287,7 +265,7 @@ class Model1D(Model):
                 
     
 class Model2D(Model):
-    def __init__(self,n_zone=80,Z_inc=np.array([1]),A_inc=np.array([1]),time=0.25*days,rmin=np.array([0,0])):
+    def __init__(self,n_zone=80,Z_inc=np.array([1]),A_inc=np.array([1]),time=0.25*days,rmin=0):
         super().__init__(Z_inc=Z_inc,A_inc=A_inc,time=time)
         n_z = 2*n_zone
         self.temp = np.zeros((n_zone,n_z))
@@ -298,6 +276,14 @@ class Model2D(Model):
         self.X_lan = np.zeros((n_zone,n_z))
         self.rmin = rmin
         self.n_zone = n_zone
+        
+        self.labelvx = 0
+        self.labelvz = 0
+        self.labeltheta = 0
+        self.labelX0 = 0
+        self.labelX1 = 0
+        self.labelmass1 = 0
+        self.labelmass2 = 0
         
         self.dr_x = 0
         self.dr_z = 0
@@ -379,7 +365,9 @@ class Model2D(Model):
         eta_rho = (4*np.pi*((n_inner-n_outer)/((3-n_inner)*(3-n_outer))))**-1
         eta_v = (((5-n_inner)*(5-n_outer))/((3-n_inner)*(3-n_outer)))**0.5
         
-        v_t = None
+        self.labelvx = v_x
+        self.labelvz = v_z
+        self.labelmass1 = mass
         
         v_tx = eta_v*v_x*self.c
         v_tz = eta_v*v_z*self.c
@@ -450,17 +438,50 @@ class Model2D(Model):
     def GaussXlan(self,X0=None,X1=None,sig=None):
         if X0<=X1:
             print('Did you mean to have higher polar Xlan?')
+        self.labelX0 = X0
+        self.labelX1 = X1
+        self.labeltheta = sig
         return X1+(X0-X1)*np.exp(-1*(self.angles/(np.sqrt(2)*sig*np.pi/180))**2)
 
     def StepXlan(self,X0=None,X1=None,sig=None):
         if X0<=X1:
             print('Did you mean to have higher polar Xlan?')
+        self.labelX0 = X0
+        self.labelX1 = X1
+        self.labeltheta = sig
         return np.where(np.abs(self.angles)<=sig*np.pi/180,X0,X1)
 
     def SmoothXlan(self,X0=None,X1=None,sig=None,n=12):
         if X0<=X1:
             print('Did you mean to have higher polar Xlan?')
+        self.labelX0 = X0
+        self.labelX1 = X1
+        self.labeltheta = sig
         return X1+(X0-X1)*(np.abs(self.angles/(sig*np.pi/180))**n+1)**-1
+        
+    def writeh5(self,overrideName=False):
+        if overrideName:
+            fout = h5py.File(name + '_2D.h5','w')
+        elif self.labeltheta != '':
+            name = 'toy_KN_ellipse_' + "{:.1E}".format(self.labelmass1) +"M_"+ str(self.labelvx)+"vI_" + str(self.labelvz)+"vII_"+"{:.1E}".format(self.labelX0)+'X_lanI_'+"{:.1E}".format(self.labelX1)+'X_lanII_'+self.labeltheta +'theta_2D.h5'
+            fout = h5py.File(name,'w')
+        else:
+            name = 'test'
+            fout = h5py.File(name,'w')
+        fout.create_dataset('time',data=[self.time],dtype='d')
+        fout.create_dataset('Z',data=self.Z,dtype='i')
+        fout.create_dataset('A',data=self.A,dtype='i')
+        fout.create_dataset('rho',data=self.rho,dtype='d')
+        fout.create_dataset('temp',data=self.temp,dtype='d')
+        fout.create_dataset('vx',data=self.vXX,dtype='d')
+        fout.create_dataset('vz',data=self.vZZ,dtype='d')
+        fout.create_dataset('Xrproc',data=self.X_rproc,dtype='d')
+        fout.create_dataset('comp',data=self.comp,dtype='d')
+    #    fout.create_dataset('r_out',data=rRR,dtype='d')
+        fout.create_dataset('rmin',data=[self.rmin,-1*self.rmax_x],dtype='d')
+        fout.create_dataset('erad',data=self.erad,dtype='d')
+        fout.create_dataset('x_out',data=self.vx*self.time,dtype='d')
+        fout.create_dataset('z_out',data=self.vz*self.time,dtype='d')
 
 
     
