@@ -287,14 +287,137 @@ class Model1D(Model):
                 
     
 class Model2D(Model):
-    def __init__(self,n_zone=80,Z_inc=np.array([1]),A_inc=np.array([1]),time=0.25*days):
+    def __init__(self,n_zone=80,Z_inc=np.array([1]),A_inc=np.array([1]),time=0.25*days,rmin=np.array([0,0])):
         super().__init__(Z_inc=Z_inc,A_inc=A_inc,time=time)
         n_z = 2*n_zone
         self.temp = np.zeros((n_zone,n_z))
         self.rho = np.zeros((n_zone,n_z))
-        self.comp = np.zeros((n_zone,len(self.Z)))
-        self.erad = np.zeros(n_zone)
-        self.X_rproc = np.zeros(n_zone)
+        self.comp = np.zeros((n_zone,n_z,len(self.Z)))
+        self.erad = np.zeros((n_zone,n_z))
+        self.X_rproc = np.zeros((n_zone,n_z))
+        self.X_lan = np.zeros((n_zone,n_z))
+        self.rmin = rmin
+        self.n_zone = n_zone
+        
+        self.dr_x = 0
+        self.dr_z = 0
+        self.dv_x = 0
+        self.dv_z = 0
+        
+        self.v_r = np.zeros((n_zone,n_z))
+        self.angles = np.zeros((n_zone,n_z))
+        
+        self.vXX = np.zeros((n_zone,n_z))
+        self.vZZ = np.zeros((n_zone,n_z))
+        self.vRR = np.zeros((n_zone,n_z))
+        
+        self.volume = np.zeros((n_zone,n_z))
+        
+    def ellipse(self):
+        eta_rho = 1
+        eta_v = 1
+        
+    def setGrid(self,vmax_x,vmax_z):
+        if vmax_x >= 1 or vmax_z >= 1:
+            raise Exception("Trying to set maximum velocity higher than the speed of light!")
+        self.vmax_x = vmax_x*self.c
+        self.vmax_z = vmax_z*self.c
+        self.rmax_x = self.time*vmax_x*self.c
+        self.rmax_z = self.time*vmax_z*self.c
+        self.dr_x   = self.rmax_x/(1.0*self.n_zone)
+        self.dv_x   = self.vmax_x/(1.0*self.n_zone)
+        self.dr_z   = self.rmax_z/(1.0*self.n_zone)
+        self.dv_z   = self.vmax_z/(1.0*self.n_zone)
+        
+        self.vx   = np.arange(self.dv_x,self.vmax_x+0.1,self.dv_x)
+        self.vz   = np.arange(-1.0*self.vmax_z + self.dv_z,self.vmax_z+0.1,self.dv_z)-self.dv_z/2
+        
+        self.vXX = np.repeat(self.vx[:,np.newaxis],np.shape(self.rho)[1],axis=1)
+
+        self.vZZ = np.reshape(self.vz,(1,-1))[0]
+
+        self.vZZ = np.repeat(self.vZZ[np.newaxis,:],self.n_zone,axis=0)
+
+        self.vRR = (self.vXX**2+self.vZZ**2)**0.5
+        
+        self.angles = np.arctan(self.vZZ/self.vXX)
+        
+    def setVol(self):
+        for i in range(self.n_zone):
+            #for j in range(nz):
+            if i == 0:
+                self.volume[i] = np.pi*((self.dv_x*self.time)**2-self.rmin[0]**2)*self.dr_z*np.ones(len(self.volume[i]))
+            else:
+                self.volume[i] = np.pi*((self.vx[i]*self.time)**2-(self.vx[i-1]*self.time)**2)*self.dr_z*np.ones(len(self.volume[i]))
+                
+    def BrokenPowerLaw(self,mass,velocity,n_inner=1,n_outer=10,resetGrid=False,v_min=0,v_max=1):
+        if n_inner == 3 or n_outer == 3 or n_inner == 5 or n_outer == 5:
+            raise Exception("Warning, value of power law index not valid for this formalism!")
+        eta_rho = (4*np.pi*((n_inner-n_outer)/((3-n_inner)*(3-n_outer))))**-1
+        eta_v = (((5-n_inner)*(5-n_outer))/((3-n_inner)*(3-n_outer)))**0.5
+        
+        v_t = eta_v*velocity*self.c
+        
+        if resetGrid or not hasattr(self, 'vx') or not hasattr(self, 'vz'):
+            self.setGrid(3*v_t/self.c,3*v_t/self.c)
+        
+        self.setVol()
+        
+        #currentRho = eta_rho*(mass*self.m_sun)/(v_t*self.time)**3*np.where(self.vx<=v_t,((self.vx-self.dv/2)/v_t)**(-1*n_inner),((self.vx-self.dv/2)/v_t)**(-1*n_outer))
+        currentRho = eta_rho*(mass*self.m_sun)/(v_t*self.time)**3*np.where(self.vRR<=v_t,((self.vRR)/v_t)**(-1*n_inner),((self.vRR)/v_t)**(-1*n_outer))
+        currentRho = np.where((self.vRR>v_min*self.c)&(self.vRR<v_max*self.c),currentRho,self.rho_min)
+        totalMass = np.sum(currentRho*self.volume)
+        currentRho *= (mass*self.m_sun)/totalMass
+        
+        return currentRho
+                
+    def plotProp(self,prop1,prop2=None,log1=True,log2=True,label1='Unlabeled',label2='Unlabeled',size=14,mirror=True,forceEqual=False):
+        currentVariable = prop1
+        if log1:
+            currentVariable = np.log10(prop1)
+        currentVariable2 = prop2
+        if log2 and np.shape(prop2) == np.shape(self.rho):
+            currentVariable2 = np.log10(prop2)
+            
+        sm = plt.cm.ScalarMappable(cmap=plt.cm.coolwarm,norm=plt.Normalize(vmin=np.min(currentVariable),
+                                                                   vmax=np.max(currentVariable)))
+        colors= sm.to_rgba(currentVariable.flatten())
+        
+        cbar = plt.colorbar(sm,label=label1)
+
+        cbar.ax.tick_params(labelsize=18)
+        cbar.set_label(label1,fontsize=18)
+
+        if mirror:
+            plt.scatter(self.vXX.flatten()/self.c,self.vZZ.flatten()/self.c,c=colors,s=size)
+            plt.scatter(-1*self.vXX.flatten()/self.c,self.vZZ.flatten()/self.c,c=colors,s=size)
+        else:
+            plt.scatter(self.vXX.flatten()/self.c,self.vZZ.flatten()/self.c,c=colors,s=size)
+
+            sm = plt.cm.ScalarMappable(cmap=plt.cm.PiYG,norm=plt.Normalize(vmin=np.min(currentVariable2),
+                                                                   vmax=np.max(currentVariable2)))
+            colors= sm.to_rgba(currentVariable2.flatten())
+            plt.scatter(-1*self.vXX.flatten()/self.c,self.vZZ.flatten()/self.c,c=colors,s=size)
+#    plt.colorbar(sm,label=r'log$_{10}$ (X$_{lan}$)',location='left')
+            cbar = plt.colorbar(sm,label=label2,location='left',pad=0.1)
+
+            cbar.ax.tick_params(labelsize=18)
+            cbar.set_label(label2,fontsize=18)
+        plt.xlabel('Vx (c)',fontsize=14)
+        plt.ylabel('Vz (c)',fontsize=14)
+        plt.tick_params(axis='both', which='major', labelsize=18)
+
+        plt.ylim(-1*max(self.vz/self.c),max(self.vz/self.c))
+        plt.xlim(-1*max(self.vx/self.c),max(self.vx/self.c))
+
+        if forceEqual:
+            grande = max(np.max(self.vz),np.max(self.vx))
+            plt.ylim(-1*grande/self.c,grande/self.c)
+            plt.xlim(-1*grande/self.c,grande/self.c)
+
+    
+        
+
 
 name   = "FreeNeutron_test"    # base name of model
 
