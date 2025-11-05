@@ -313,17 +313,18 @@ class Model2D(Model):
         
         self.volume = np.zeros((n_zone,n_z))
         
-    def ellipse(self):
-        eta_rho = 1
-        eta_v = 1
+        self.TwoD_eta_v = {"H":1.028850, "P":1.079134,"B":0.986012,"T":1}
+        self.TwoD_eta_rho = {"H":5.367093, "P":0.183475,"B":0.0222324,"T":0.810569}
+        
+    
         
     def setGrid(self,vmax_x,vmax_z):
         if vmax_x >= 1 or vmax_z >= 1:
             raise Exception("Trying to set maximum velocity higher than the speed of light!")
         self.vmax_x = vmax_x*self.c
         self.vmax_z = vmax_z*self.c
-        self.rmax_x = self.time*vmax_x*self.c
-        self.rmax_z = self.time*vmax_z*self.c
+        self.rmax_x = self.time*self.vmax_x*self.c
+        self.rmax_z = self.time*self.vmax_z*self.c
         self.dr_x   = self.rmax_x/(1.0*self.n_zone)
         self.dv_x   = self.vmax_x/(1.0*self.n_zone)
         self.dr_z   = self.rmax_z/(1.0*self.n_zone)
@@ -341,6 +342,8 @@ class Model2D(Model):
         self.vRR = (self.vXX**2+self.vZZ**2)**0.5
         
         self.angles = np.arctan(self.vZZ/self.vXX)
+        
+        self.setVol()
         
     def setVol(self):
         for i in range(self.n_zone):
@@ -370,6 +373,35 @@ class Model2D(Model):
         currentRho *= (mass*self.m_sun)/totalMass
         
         return currentRho
+        
+    def Ellipse(self,mass,v_x,v_z,n_inner=1,n_outer=10,resetGrid=False,v_min=0,v_max=1):
+
+        eta_rho = (4*np.pi*((n_inner-n_outer)/((3-n_inner)*(3-n_outer))))**-1
+        eta_v = (((5-n_inner)*(5-n_outer))/((3-n_inner)*(3-n_outer)))**0.5
+        
+        v_t = None
+        
+        v_tx = eta_v*v_x*self.c
+        v_tz = eta_v*v_z*self.c
+        
+        if resetGrid or not hasattr(self, 'vx') or not hasattr(self, 'vz'):
+            f_x = 3
+            f_z = 3
+            while f_x*v_tx >= self.c:
+                f_x /= 1.5
+            while f_z*v_tz >= self.c:
+                f_z /= 1.5
+            self.setGrid(f_x*v_tx/self.c,f_z*v_tz/self.c)
+        
+        p1 = np.where(((self.vZZ/(v_tz))**2+(self.vXX/(v_tx))**2)**0.5<=1,(((self.vZZ/(v_tz))**2+(self.vXX/(v_tx))**2)**(-1*n_inner/2)),(((self.vZZ/(v_tz))**2+(self.vXX/(v_tx))**2)**(-1*n_outer/2)))
+        p2 = eta_rho*(mass*self.m_sun)/((min(v_tz,v_tx)*self.time)**3)
+        currentRhos = p1*p2
+        currentRhos = np.where(currentRhos<=0,self.rho_min,currentRhos)
+        currentRhos = np.where((self.vRR>v_max*self.c) & (self.vRR<v_min*self.c),self.rho_min,currentRhos)
+        factor = mass/(np.sum(self.volume[(currentRhos>self.rho_min)]*currentRhos[(currentRhos>self.rho_min)])/self.m_sun)
+        
+        currentRhos[(currentRhos>self.rho_min)] *= factor
+        return currentRhos
                 
     def plotProp(self,prop1,prop2=None,log1=True,log2=True,label1='Unlabeled',label2='Unlabeled',size=14,mirror=True,forceEqual=False):
         currentVariable = prop1
