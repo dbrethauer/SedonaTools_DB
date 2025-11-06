@@ -175,6 +175,8 @@ class Model1D(Model):
         self.dv   = self.vmax/(1.0*self.n_zone)
         self.vx   = np.arange(self.dv,self.vmax+0.1,self.dv)
         
+        self.setVol()
+        
     def BrokenPowerLaw(self,mass,velocity,n_inner=1,n_outer=10,resetGrid=False,v_min=0,v_max=1):
         if n_inner == 3 or n_outer == 3 or n_inner == 5 or n_outer == 5:
             raise Exception("Warning, value of power law index not valid for this formalism!")
@@ -290,7 +292,6 @@ class Model2D(Model):
         self.dv_x = 0
         self.dv_z = 0
         
-        self.v_r = np.zeros((n_zone,n_z))
         self.angles = np.zeros((n_zone,n_z))
         
         self.vXX = np.zeros((n_zone,n_z))
@@ -309,8 +310,8 @@ class Model2D(Model):
             raise Exception("Trying to set maximum velocity higher than the speed of light!")
         self.vmax_x = vmax_x*self.c
         self.vmax_z = vmax_z*self.c
-        self.rmax_x = self.time*self.vmax_x*self.c
-        self.rmax_z = self.time*self.vmax_z*self.c
+        self.rmax_x = self.time*self.vmax_x
+        self.rmax_z = self.time*self.vmax_z
         self.dr_x   = self.rmax_x/(1.0*self.n_zone)
         self.dv_x   = self.vmax_x/(1.0*self.n_zone)
         self.dr_z   = self.rmax_z/(1.0*self.n_zone)
@@ -322,7 +323,6 @@ class Model2D(Model):
         self.vXX = np.repeat(self.vx[:,np.newaxis],np.shape(self.rho)[1],axis=1)
 
         self.vZZ = np.reshape(self.vz,(1,-1))[0]
-
         self.vZZ = np.repeat(self.vZZ[np.newaxis,:],self.n_zone,axis=0)
 
         self.vRR = (self.vXX**2+self.vZZ**2)**0.5
@@ -333,9 +333,8 @@ class Model2D(Model):
         
     def setVol(self):
         for i in range(self.n_zone):
-            #for j in range(nz):
             if i == 0:
-                self.volume[i] = np.pi*((self.dv_x*self.time)**2-self.rmin[0]**2)*self.dr_z*np.ones(len(self.volume[i]))
+                self.volume[i] = np.pi*((self.dv_x*self.time)**2-self.rmin**2)*self.dr_z*np.ones(len(self.volume[i]))
             else:
                 self.volume[i] = np.pi*((self.vx[i]*self.time)**2-(self.vx[i-1]*self.time)**2)*self.dr_z*np.ones(len(self.volume[i]))
                 
@@ -348,16 +347,20 @@ class Model2D(Model):
         v_t = eta_v*velocity*self.c
         
         if resetGrid or not hasattr(self, 'vx') or not hasattr(self, 'vz'):
-            self.setGrid(3*v_t/self.c,3*v_t/self.c)
+            f = 3
+            while f*v_t >= self.c:
+                f /= 1.5
+            self.setGrid(f*v_t/self.c,f*v_t/self.c)
         
-        self.setVol()
         
         #currentRho = eta_rho*(mass*self.m_sun)/(v_t*self.time)**3*np.where(self.vx<=v_t,((self.vx-self.dv/2)/v_t)**(-1*n_inner),((self.vx-self.dv/2)/v_t)**(-1*n_outer))
-        currentRho = eta_rho*(mass*self.m_sun)/(v_t*self.time)**3*np.where(self.vRR<=v_t,((self.vRR)/v_t)**(-1*n_inner),((self.vRR)/v_t)**(-1*n_outer))
-        currentRho = np.where((self.vRR>v_min*self.c)&(self.vRR<v_max*self.c),currentRho,self.rho_min)
+        currentRho = eta_rho*(mass*self.m_sun)/(v_t*self.time)**3*np.where(self.vRR<=v_t,((self.vRR)/v_t)**(-1*n_inner),(self.vRR/v_t)**(-1*n_outer))
+        currentRho = np.where((self.vRR>v_min*self.c)&(self.vRR<v_max*self.c)&(self.vRR<f*v_t),currentRho,self.rho_min)
+
         totalMass = np.sum(currentRho*self.volume)
+
         currentRho *= (mass*self.m_sun)/totalMass
-        
+
         return currentRho
         
     def Ellipse(self,mass,v_x,v_z,n_inner=1,n_outer=10,resetGrid=False,v_min=0,v_max=1):
@@ -381,15 +384,54 @@ class Model2D(Model):
                 f_z /= 1.5
             self.setGrid(f_x*v_tx/self.c,f_z*v_tz/self.c)
         
+        
+        
         p1 = np.where(((self.vZZ/(v_tz))**2+(self.vXX/(v_tx))**2)**0.5<=1,(((self.vZZ/(v_tz))**2+(self.vXX/(v_tx))**2)**(-1*n_inner/2)),(((self.vZZ/(v_tz))**2+(self.vXX/(v_tx))**2)**(-1*n_outer/2)))
         p2 = eta_rho*(mass*self.m_sun)/((min(v_tz,v_tx)*self.time)**3)
         currentRhos = p1*p2
         currentRhos = np.where(currentRhos<=0,self.rho_min,currentRhos)
         currentRhos = np.where((self.vRR>v_max*self.c) & (self.vRR<v_min*self.c),self.rho_min,currentRhos)
         factor = mass/(np.sum(self.volume[(currentRhos>self.rho_min)]*currentRhos[(currentRhos>self.rho_min)])/self.m_sun)
+
         
         currentRhos[(currentRhos>self.rho_min)] *= factor
         return currentRhos
+        
+    def TwoDShape(self,q=None,axis=None,mass=None,v_EK=None):
+        factor = 0
+        if axis.lower() == 'x':
+            factor = 1
+        elif axis.lower() == 'z':
+            factor = -1
+        letter = self.get_letter(q,axis)
+        eta_v = self.TwoD_eta_v[letter]
+        #eta_rho = self.TwoD_eta_rho[letter]
+        v_t = eta_v*v_EK*self.c
+            
+        rho_0 = mass*self.m_sun/(v_EK*self.c*self.time)**3
+        currentRhos = rho_0*(q-((self.vRR/v_t)**4)+2*factor*((self.vRR/v_t)**2)*np.cos(2*self.angles))**(3)
+        currentRhos = np.where(currentRhos<=self.rho_min,self.rho_min,currentRhos)
+        totalMass = np.sum(self.volume*currentRhos)/self.m_sun
+
+        
+        currentRhos[currentRhos>self.rho_min] *= mass/totalMass
+        
+        return currentRhos
+        
+    def get_letter(self,q,axis):
+        if q == 0:
+            if axis.lower() == "x":
+                return "T"
+            elif axis.lower() == "z":
+                return "H"
+        elif q == 1:
+            if axis.lower() == "z":
+                return "P"
+            elif axis.lower() == "x":
+                print("WARNING! NOT A VALID COMBINATION! PROCEEDING WITH P")
+                return "P"
+        elif q == 1.5:
+            return "B"
                 
     def plotProp(self,prop1,prop2=None,log1=True,log2=True,label1='Unlabeled',label2='Unlabeled',size=14,mirror=True,forceEqual=False):
         currentVariable = prop1
