@@ -338,24 +338,28 @@ class Model2D(Model):
             else:
                 self.volume[i] = np.pi*((self.vx[i]*self.time)**2-(self.vx[i-1]*self.time)**2)*self.dr_z*np.ones(len(self.volume[i]))
                 
-    def BrokenPowerLaw(self,mass,velocity,n_inner=1,n_outer=10,resetGrid=False,v_min=0,v_max=1):
+    def BrokenPowerLaw(self,mass,velocity,n_inner=1,n_outer=10,resetGrid=False,v_min=0,v_max=1,vx0=0,vz0=0):
         if n_inner == 3 or n_outer == 3 or n_inner == 5 or n_outer == 5:
             raise Exception("Warning, value of power law index not valid for this formalism!")
+            
+        v_offset = ((self.vXX-vx0*self.c)**2+(self.vZZ-vz0*self.c)**2)**0.5
+        
+        
         eta_rho = (4*np.pi*((n_inner-n_outer)/((3-n_inner)*(3-n_outer))))**-1
         eta_v = (((5-n_inner)*(5-n_outer))/((3-n_inner)*(3-n_outer)))**0.5
         
         v_t = eta_v*velocity*self.c
-        
+        f = 3
         if resetGrid or not hasattr(self, 'vx') or not hasattr(self, 'vz'):
-            f = 3
+            
             while f*v_t >= self.c:
                 f /= 1.5
             self.setGrid(f*v_t/self.c,f*v_t/self.c)
         
         
         #currentRho = eta_rho*(mass*self.m_sun)/(v_t*self.time)**3*np.where(self.vx<=v_t,((self.vx-self.dv/2)/v_t)**(-1*n_inner),((self.vx-self.dv/2)/v_t)**(-1*n_outer))
-        currentRho = eta_rho*(mass*self.m_sun)/(v_t*self.time)**3*np.where(self.vRR<=v_t,((self.vRR)/v_t)**(-1*n_inner),(self.vRR/v_t)**(-1*n_outer))
-        currentRho = np.where((self.vRR>v_min*self.c)&(self.vRR<v_max*self.c)&(self.vRR<f*v_t),currentRho,self.rho_min)
+        currentRho = eta_rho*(mass*self.m_sun)/(v_t*self.time)**3*np.where(v_offset<=v_t,((v_offset)/v_t)**(-1*n_inner),(v_offset/v_t)**(-1*n_outer))
+        currentRho = np.where((v_offset>v_min*self.c)&(v_offset<v_max*self.c)&(v_offset<f*v_t),currentRho,self.rho_min)
 
         totalMass = np.sum(currentRho*self.volume)
 
@@ -398,6 +402,8 @@ class Model2D(Model):
         return currentRhos
         
     def TwoDShape(self,q=None,axis=None,mass=None,v_EK=None):
+        if not hasattr(self, 'vx') or not hasattr(self, 'vz'):
+            raise Exception("The grid has not been set yet! Do that before adding a TwoDShape")
         factor = 0
         if axis.lower() == 'x':
             factor = 1
@@ -432,6 +438,33 @@ class Model2D(Model):
                 return "P"
         elif q == 1.5:
             return "B"
+            
+    def ConstantDensity(self,mass,vmax=0.3,v_cut=0.3,v_min=0,resetGrid=False,vx0=0,vz0=0):
+        
+        if resetGrid or not hasattr(self, 'vx') or not hasattr(self, 'vz'):
+            self.setGrid(vmax,vmax)
+            
+        v_offset = ((self.vXX-vx0*self.c)**2+(self.vZZ-vz0*self.c)**2)**0.5
+            
+        currentRho = np.where((v_offset<v_cut*self.c)&(v_offset>v_min*self.c),mass*self.m_sun/(4/3*np.pi*self.time*(v_cut-v_min)*self.c)**3*np.ones(np.shape(self.rho)),self.rho_min)
+        totalMass = np.sum(currentRho[(v_offset<v_cut*self.c)&(v_offset>v_min*self.c)]*self.volume[(v_offset<v_cut*self.c)&(v_offset>v_min*self.c)])
+        currentRho[(v_offset<v_cut*self.c)&(v_offset>v_min*self.c)] *= (mass*self.m_sun)/totalMass
+        
+        return currentRho
+        
+    def PowerLaw(self,mass,index=4,vmax=0.3,v_cut=0.3,v_min=1E-1,resetGrid=False,vx0=0,vz0=0):
+        if resetGrid or not hasattr(self, 'vx') or not hasattr(self, 'vz'):
+            self.setGrid(vmax,vmax)
+        
+        v_offset = ((self.vXX-vx0*self.c)**2+(self.vZZ-vz0*self.c)**2)**0.5
+        
+        currentRho = np.where((v_offset<v_cut*self.c)&(v_offset>v_min*self.c),(v_offset/v_min/self.c)**(-index),self.rho_min)
+        
+        totalMass = np.sum(currentRho[(v_offset<v_cut*self.c)&(v_offset>v_min*self.c)]*self.volume[(v_offset<v_cut*self.c)&(v_offset>v_min*self.c)])
+        currentRho[(v_offset<v_cut*self.c)&(v_offset>v_min*self.c)] *= (mass*self.m_sun)/totalMass
+        return currentRho
+        
+        
                 
     def plotProp(self,prop1,prop2=None,log1=True,log2=True,label1='Unlabeled',label2='Unlabeled',size=14,mirror=True,forceEqual=False):
         currentVariable = prop1
