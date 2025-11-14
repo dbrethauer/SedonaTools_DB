@@ -18,7 +18,7 @@ def setup(path,cleanup=False):
              changeLua(file)
            else:
              os.system("cp ./kilonova.lua " + "./"+file[:-3]+"/kilonova.lua")
-           #runSedona(file)
+           runSedona(file)
            if cleanup == True:
              os.system("rm ./"+file[:-3]+"/model_spec*")
              os.system("rm ./"+file[:-3]+"/plt*")
@@ -73,6 +73,6 @@ def changeLua(file):
             
 
 
-#setup("/home/dbrethauer/kn_project/grid/grid_practice/models/",cleanup=False)
-changeLua('Magnetar_1.0E+49Erot_5.0E-01t0_3E-2M_0.1v_1D.h5')
+setup("/home/dbrethauer/kn_project/grid/grid_practice/models/",cleanup=False)
+#changeLua('Magnetar_1.0E+49Erot_5.0E-01t0_3E-2M_0.1v_1D.h5')
 
