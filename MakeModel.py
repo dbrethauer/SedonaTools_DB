@@ -1,6 +1,7 @@
 import numpy as np
 import h5py
 import matplotlib.pyplot as plt
+from scipy import integrate
 
 
 
@@ -25,7 +26,7 @@ class Model:
         self.c = 2.998*10**10
         self.days = 24*60*60
         self.arad   = 7.5657e-15
-        self.volumes = np.array([])
+        self.volume = np.array([])
         self.singleXlan = None
         self.rho_min = 1E-20
         self.grey_opacity = np.array([])
@@ -130,8 +131,18 @@ class Model:
         neutrons[np.searchsorted(self.Z,0)] = 1.0
         return neutrons
         
+    def addHeat(self,lum_func,location='center',**kwargs): #currently assumes 100% thermalization
+        times = np.logspace(1,np.log10(self.time),1000)
+        lums = lum_func(times=times,**kwargs)
+        total_E = integrate.trapezoid(lums,times)
+        if np.shape(self.volume) != np.shape(self.rho):
+            self.setVol()
+            print("Calculating volumes...")
+        
+        return total_E
         
 
+    
 class Model1D(Model):
     def __init__(self,n_zone=80,Z_inc=np.array([1]),A_inc=np.array([1]),time=0.25*days,rmin=0):
         super().__init__(Z_inc=Z_inc,A_inc=A_inc,time=time)
@@ -238,6 +249,14 @@ class Model1D(Model):
         totalMass = np.sum(currentRho[(self.vx<v_cut*self.c)&(self.vx>v_min*self.c)]*self.volume[(self.vx<v_cut*self.c)&(self.vx>v_min*self.c)])
         currentRho[(self.vx<v_cut*self.c)&(self.vx>v_min*self.c)] *= (mass*self.m_sun)/totalMass
         return currentRho
+        
+    def getGrayPhotosphere(self,time):
+        lengths = self.vx*time - np.insert(self.vx*time,0,self.rmin)[:len(self.vx)]
+        taus = np.flip((self.rho*(time/self.time)**-3)*self.grey_opacity*lengths,axis=0)
+        opticalDepths = np.cumsum(taus,axis=0)
+        indices = self.n_zone-1-np.argmax(opticalDepths>=1,axis=0)
+        fixed_indices = np.where(indices==(self.n_zone-1),0,indices)
+        return fixed_indices
         
     def writeh5(self,name,use_rproc=True,overrideName=False):
         if overrideName:
