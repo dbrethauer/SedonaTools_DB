@@ -624,11 +624,11 @@ class CoreSpectrum:
         p2 = np.exp(h*self.nus[None,:]/k/temp[:,None])-1
         return p1[None,:]/p2
 
-    def diskTemp(self,Rs=np.logspace(8,12,1000),M=3*1.989E33,Mdot=1*1.989E33/24/60/60/365,Rmin=1E8):
+    def diskTemp(self,Rs=np.logspace(8,12,1000),M=3*1.989E33,Mdot=1*1.989E33/24/60/60/365):
         G = 6.67E-8
         sig = 5.67E-5
         p1 = G*M*Mdot/(8*np.pi*sig*Rs**3)
-        p2 = 1-(Rmin/Rs)**0.5
+        p2 = 1-(Rs[0]/Rs)**0.5
         return (p1*p2)**0.25
         
     def getDiskSpec(self,M=3*1.989E33,Mdot=1*1.989E33/24/60/60/365,Rmin=1E8,Rout=1E16):
@@ -639,6 +639,13 @@ class CoreSpectrum:
         self.spec = np.sum(fluxes,axis=0)
         
         self.spec = self.spec/integrate.trapezoid(self.spec,self.nus)
+        
+        return self.spec
+        
+    def getPowerLawSpec(self,nu_start=1E15,nu_end=1E18,index=-1):
+        fluxes = np.where(((self.nus<nu_end)&(self.nus>nu_start)),1*(self.nus/nu_start)**index,0)
+        
+        self.spec = fluxes/integrate.trapezoid(fluxes,self.nus)
         
         return self.spec
         
