@@ -131,15 +131,34 @@ class Model:
         neutrons[np.searchsorted(self.Z,0)] = 1.0
         return neutrons
         
-    def addHeat(self,lum_func,location='center',**kwargs): #currently assumes 100% thermalization
-        times = np.logspace(1,np.log10(self.time),1000)
+    def addHeat(self,lum_func,location='center',kappa=10,**kwargs): #currently assumes 100% thermalization
+        times = np.logspace(0,np.log10(self.time),1000)
+        delta_ts = times-np.insert(times,0,0)[:len(times)]
         lums = lum_func(times=times,**kwargs)
         total_E = integrate.trapezoid(lums,times)
+        
         if np.shape(self.volume) != np.shape(self.rho):
             self.setVol()
             print("Calculating volumes...")
         
-        return total_E
+        mfp = 1/(self.rho*kappa)
+        
+        print('Assuming 1D')
+        
+        lengths = (self.vx-np.insert(self.vx,0,0)[:len(self.vx)])*self.time
+        
+        dTau = lengths/mfp
+        
+        scatterings = np.where(dTau<1,dTau,dTau**2)
+        
+        t_escape = mfp*scatterings/self.c
+        
+        cumulative_t_esc = np.cumsum(t_escape)
+        
+        return dTau,scatterings,t_escape,cumulative_t_esc
+        
+    def expand(self,t_new):
+        return self.rho*(t_new/self.time)**-3
         
 
     
@@ -578,8 +597,53 @@ class Model2D(Model):
         fout.create_dataset('z_out',data=self.vz*self.time,dtype='d')
 
 
-    
+class CoreSpectrum:
+    def __init__(self,nus=(1e12,1e18,0.01,1)):
+        if np.size(nus) == 4:
+            nu_start, nu_end, delta, do_log = nus
+            self.nu_edge = np.array([nu_start])
+            last_nu = nu_start
+            while (last_nu < nu_end):
+                currentNu = self.nu_edge[len(self.nu_edge)-1]
+                self.nu_edge = np.insert(self.nu_edge,len(self.nu_edge),currentNu + delta*currentNu)
+                last_nu = self.nu_edge[len(self.nu_edge)-1]
+            self.nu_edge[len(self.nu_edge)-1] = nu_end
+        elif np.size(nus) == 3:
+            self.nu_edge = np.linspace(0,1,100)
+        else:
+            raise Exception("Incorrect nu format. Either linear (nu_start,nu_stop,nu_step) or logarithmic (nu_start,nu_stop,nu_delta,1)")
+        self.nus = 0.5*(self.nu_edge[1:] + self.nu_edge[:-1])
+        self.spec = np.zeros(np.shape(self.nus))
         
+        
+    def bb(self,temp=np.array([1E4])):
+        h= 6.626E-27
+        c = 2.998E10
+        k = 1.38E-16
+        p1 = 2*h*self.nus**3/(c**2)
+        p2 = np.exp(h*self.nus[None,:]/k/temp[:,None])-1
+        return p1[None,:]/p2
+
+    def diskTemp(self,Rs=np.logspace(8,12,1000),M=3*1.989E33,Mdot=1*1.989E33/24/60/60/365,Rmin=1E8):
+        G = 6.67E-8
+        sig = 5.67E-5
+        p1 = G*M*Mdot/(8*np.pi*sig*Rs**3)
+        p2 = 1-(Rmin/Rs)**0.5
+        return (p1*p2)**0.25
+        
+    def getDiskSpec(self,M=3*1.989E33,Mdot=1*1.989E33/24/60/60/365,Rmin=1E8,Rout=1E16):
+        Rs = np.logspace(np.log10(Rmin),np.log10(Rout),1000)
+        dA = 2*np.pi*Rs*(Rs-np.insert(Rs,0,0)[:len(Rs)])
+        temps = self.diskTemp(Rs=Rs,Rmin=Rs[0],Mdot=Mdot,M=M)
+        fluxes = self.bb(temp=temps)*dA[:,None]
+        self.spec = np.sum(fluxes,axis=0)
+        
+        self.spec = self.spec/integrate.trapezoid(self.spec,self.nus)
+        
+        return self.spec
+        
+    def writeSpecFile(self):
+        return 1
 
 
 name   = "FreeNeutron_test"    # base name of model
