@@ -3,14 +3,10 @@ import h5py
 import matplotlib.pyplot as plt
 from scipy import integrate
 
-
-
 days = 60*60*24        # days conversion to seconds
-fd     = 1 #fraction of
-lf = 0.01 #lanthanide fraction
 
 class Model:
-    def __init__(self,Z_inc=np.array([1]),A_inc=np.array([1]),time=0.25*days):
+    def __init__(self,Z_inc=np.array([1]),A_inc=np.array([1]),time=0.25*days,rho_min=1e-20):
         self.temp = np.array([])
         self.rho = np.array([])
         self.Z = Z_inc #Zs must be in increasing order!!!!!!
@@ -28,7 +24,7 @@ class Model:
         self.arad   = 7.5657e-15
         self.volume = np.array([])
         self.singleXlan = None
-        self.rho_min = 1E-20
+        self.rho_min = rho_min
         self.grey_opacity = np.array([])
         
     def findXlan(self):
@@ -163,8 +159,8 @@ class Model:
 
     
 class Model1D(Model):
-    def __init__(self,n_zone=80,Z_inc=np.array([1]),A_inc=np.array([1]),time=0.25*days,rmin=0):
-        super().__init__(Z_inc=Z_inc,A_inc=A_inc,time=time)
+    def __init__(self,n_zone=80,Z_inc=np.array([1]),A_inc=np.array([1]),time=0.25*days,rmin=0,rho_min=1e-20):
+        super().__init__(Z_inc=Z_inc,A_inc=A_inc,time=time,rho_min=rho_min)
         self.temp = np.zeros(n_zone)
         self.rho = np.zeros(n_zone)
         self.comp = np.ones((n_zone,len(self.Z)))
@@ -173,6 +169,7 @@ class Model1D(Model):
         self.n_zone = n_zone
         self.volume = np.zeros(n_zone)
         self.rmin = rmin
+        self.rout = np.zeros(n_zone)
         self.grey_opacity = np.zeros(n_zone)
         
     def setProperties(self,mass=None,Xlan=None,vk=None,use_rproc=True):
@@ -191,19 +188,31 @@ class Model1D(Model):
         
     def setVol(self):
         for i in range(self.n_zone):
-            if i != 0:
-                self.volume[i] = 4/3*np.pi*((self.vx[i]*self.time)**3-(self.vx[i-1]*self.time)**3)
-            else:
-                self.volume[i] = 4/3*np.pi*((self.vx[i]*self.time)**3-self.rmin**3)
+                if i != 0:
+                    self.volume[i] = 4/3*np.pi*((self.rout[i])**3-(self.rout[i-1])**3)
+                else:
+                    self.volume[i] = 4/3*np.pi*((self.rout[i])**3-self.rmin**3)
                 
-    def setGrid(self,v_max):
+    def setGrid(self,v_max=0.3,nonHomologous=False,rmax=1E16,vs=np.array([1,2])):
         if v_max >= 1:
             raise Exception("Trying to set maximum velocity higher than the speed of light!")
-        self.vmax = v_max*self.c
-        self.rmax = self.time*self.vmax
-        self.dr   = self.rmax/(1.0*self.n_zone)
-        self.dv   = self.vmax/(1.0*self.n_zone)
-        self.vx   = np.arange(self.dv,self.vmax+0.1,self.dv)
+        if nonHomologous:
+            if type(vs) == float:
+                self.vx = vs*np.ones(np.shape(self.rho))
+            elif np.shape(self.rho) == np.shape(vs):
+                self.vx = vs
+            else:
+                raise Exception("Using non-homologous velocities and input velocities are not ")
+            self.rmax = rmax
+            self.dr   = self.rmax/(1.0*self.n_zone)
+            self.rout = np.arange(self.dr,self.rmax+self.dr/2,self.dr)
+        else:
+            self.vmax = v_max*self.c
+            self.rmax = self.time*self.vmax
+            self.dr   = self.rmax/(1.0*self.n_zone)
+            self.dv   = self.vmax/(1.0*self.n_zone)
+            self.vx   = np.arange(self.dv,self.vmax+0.1,self.dv)
+            self.rout = self.vx*self.time
         
         self.setVol()
         
@@ -222,7 +231,7 @@ class Model1D(Model):
                 
             self.setGrid(self.vmax/self.c)
         
-        self.setVol()
+        #self.setVol()
         
         #currentRho = eta_rho*(mass*self.m_sun)/(v_t*self.time)**3*np.where(self.vx<=v_t,((self.vx-self.dv/2)/v_t)**(-1*n_inner),((self.vx-self.dv/2)/v_t)**(-1*n_outer))
         currentRho = eta_rho*(mass*self.m_sun)/(v_t*self.time)**3*np.where(self.vx<=v_t,((self.vx)/v_t)**(-1*n_inner),((self.vx)/v_t)**(-1*n_outer))
@@ -239,7 +248,7 @@ class Model1D(Model):
             self.vmax = vmax*self.c
             self.setGrid(self.vmax/self.c)
         
-        self.setVol()
+        #self.setVol()
         
         currentRho = np.where((self.vx<v_cut*self.c)&(self.vx>v_min*self.c),mass*self.m_sun/(4/3*np.pi*self.time*v_cut*self.c)**3*np.ones(self.n_zone),self.rho_min)
         totalMass = np.sum(currentRho[(self.vx<v_cut*self.c)&(self.vx>v_min*self.c)]*self.volume[(self.vx<v_cut*self.c)&(self.vx>v_min*self.c)])
@@ -254,7 +263,7 @@ class Model1D(Model):
             self.vmax = vmax*self.c
             self.setGrid(self.vmax/self.c)
         
-        self.setVol()
+        #self.setVol()
         
         #if index == 3:
         #v_cut = (1/self.c)*((5-index)/(3-index)*(velocity*self.c)**2+(v_min*self.c)**(5-index))**(1/(5-index))
@@ -277,7 +286,7 @@ class Model1D(Model):
         fixed_indices = np.where(indices==(self.n_zone-1),0,indices)
         return fixed_indices
         
-    def writeh5(self,name,use_rproc=True,overrideName=False):
+    def writeh5(self,name,use_rproc=True,overrideName=False,nonHomologous=False):
         if overrideName:
             fout = h5py.File(name + '_1D.h5','w')
         elif use_rproc:
@@ -293,7 +302,7 @@ class Model1D(Model):
         fout.create_dataset('v',data=self.vx,dtype='d')
         fout.create_dataset('Xrproc',data=self.X_rproc,dtype='d')
         fout.create_dataset('comp',data=self.comp,dtype='d')
-        fout.create_dataset('r_out',data=self.vx*self.time,dtype='d')
+        fout.create_dataset('r_out',data=self.rout,dtype='d')
         fout.create_dataset('r_min',data=[self.rmin],dtype='d')
         fout.create_dataset('erad',data=self.erad,dtype='d')
             
