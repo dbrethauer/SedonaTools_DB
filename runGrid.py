@@ -2,28 +2,28 @@ import os
 import numpy as np
 
 def setup(path,cleanup=False,coreSpec=False):
-   files = os.listdir(path)
-   if os.path.exists('./FinalSpectra') == False:
-      os.mkdir('./FinalSpectra')
-   for file in files:
-      if file[-2:].strip()=='h5':
-#         print(file)
-         if os.path.exists("./FinalSpectra/"+file[:-3]+"_spec_final.h5"):
-           print('Already completed spectra for file: ' + file + '; moving on.')
-         else:
-           if os.path.exists("./"+file[:-3]) == False:
-             os.mkdir("./"+file[:-3])
-           os.system("cp "+path + file + " " + "./"+file[:-3]+"/model.h5")
-           if 'Magnetar' or 'Accretion' in file:
-             changeLua(file)
-           else:
-             os.system("cp ./kilonova.lua " + "./"+file[:-3]+"/kilonova.lua")
-           if coreSpec:
-             os.system("cp "+path + file + "_corespec.txt " + "./"+file[:-3]+"/corespec.txt")
-           runSedona(file)
-           if cleanup == True:
-             os.system("rm ./"+file[:-3]+"/model_spec*")
-             os.system("rm ./"+file[:-3]+"/plt*")
+    files = os.listdir(path)
+    if os.path.exists('./FinalSpectra') == False:
+        os.mkdir('./FinalSpectra')
+    for file in files:
+        if file[-2:].strip()=='h5':
+            #print(file)
+            if os.path.exists("./FinalSpectra/"+file[:-3]+"_spec_final.h5"):
+                print('Already completed spectra for file: ' + file + '; moving on.')
+            else:
+                if os.path.exists("./"+file[:-3]) == False:
+                    os.mkdir("./"+file[:-3])
+                os.system("cp "+path + file + " " + "./"+file[:-3]+"/model.h5")
+                if 'Magnetar' or 'Accretion' in file:
+                    changeLua(file)
+                else:
+                    os.system("cp ./kilonova.lua " + "./"+file[:-3]+"/kilonova.lua")
+                if coreSpec:
+                    os.system("cp "+path + file + "_corespec.txt " + "./"+file[:-3]+"/corespec.txt")
+                runSedona(file)
+                if cleanup == True:
+                    os.system("rm ./"+file[:-3]+"/model_spec*")
+                    os.system("rm ./"+file[:-3]+"/plt*")
 
 def runSedona(file):
    os.system("cd ./" + file[:-3] + "; sedona6.ex kilonova.lua; cd ./..")
