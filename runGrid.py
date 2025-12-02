@@ -30,6 +30,7 @@ def runSedona(file):
    os.system("mv ./" + file[:-3] + "/model_spec_final.h5 ./FinalSpectra/"+file[:-3]+"_spec_final.h5")
    
 def changeLua(file):
+    mode = None
     if 'Magnetar' in file:
         E_rot = file.find('Erot')
         E_rot = float(file[E_rot-7:E_rot])
@@ -40,6 +41,7 @@ def changeLua(file):
     elif 'Accretion' in file:
         M_dot = 1
         mode = 'Accretion'
+    newFunction = ""
     if mode == 'Magnetar':
         newFunction = "t_0 = " + str(t_0*24*60*60) + "\nE_0 = " + str(E_rot) + "\nL_0 = E_0/t_0\nfunction core_luminosity(t)\n\tL = L_0/(1+t/t_0)/(1+t/t_0)\n\treturn L\nend\n"
     with open("kilonova.lua", "r") as fin, open("./"+file[:-3]+"/kilonova.lua", "w") as fout:
