@@ -2,6 +2,7 @@ import numpy as np
 import h5py
 import matplotlib.pyplot as plt
 from scipy import integrate
+import pandas as pd
 
 days = 60*60*24        # days conversion to seconds
 
@@ -286,7 +287,7 @@ class Model1D(Model):
         fixed_indices = np.where(indices==(self.n_zone-1),0,indices)
         return fixed_indices
         
-    def writeh5(self,name,use_rproc=True,overrideName=False,nonHomologous=False):
+    def writeh5(self,name,use_rproc=True,overrideName=False):
         if overrideName:
             fout = h5py.File(name + '_1D.h5','w')
         elif use_rproc:
@@ -658,8 +659,14 @@ class CoreSpectrum:
         
         return self.spec
         
-    def writeSpecFile(self):
-        return 1
+    def writeSpecFile(self,name):
+        dt = np.dtype([('nu', 'd'), ('flux', 'd')])
+        ar = np.zeros(len(TestCore.nus),dt)
+
+        ar['nu'] = self.nus
+        ar['flux'] = self.spec
+
+        np.savetxt(name, ar, '%10s')
 
 
 name   = "FreeNeutron_test"    # base name of model

@@ -1,7 +1,7 @@
 import os
 import numpy as np
 
-def setup(path,cleanup=False):
+def setup(path,cleanup=False,coreSpec=False):
    files = os.listdir(path)
    if os.path.exists('./FinalSpectra') == False:
       os.mkdir('./FinalSpectra')
@@ -18,6 +18,8 @@ def setup(path,cleanup=False):
              changeLua(file)
            else:
              os.system("cp ./kilonova.lua " + "./"+file[:-3]+"/kilonova.lua")
+           if coreSpec:
+             os.system("cp "+path + file + "_corespec.txt " + "./"+file[:-3]+"/corespec.txt")
            runSedona(file)
            if cleanup == True:
              os.system("rm ./"+file[:-3]+"/model_spec*")
@@ -59,19 +61,6 @@ def changeLua(file):
             newText = fullText.replace(oldLine,newFunction)
         fout.write(newText)
         
-        #q = 0
-        #for line in fin:
-        # modify the line here
-        #    if 'core_luminosity' in line:
-        #        if 'core_luminosity' and 'function' in line:
-        #            replaceFunction(file,mode)
-        #        else:
-        #            addFunction(file,mode)
-        #    else:
-            #new_line = line.replace("old_text", "new_text")
-        #        fout.write(new_line)
-            
-
 
 setup("/home/dbrethauer/kn_project/grid/grid_practice/models/",cleanup=False)
 #changeLua('Magnetar_1.0E+49Erot_5.0E-01t0_3E-2M_0.1v_1D.h5')
