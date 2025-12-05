@@ -661,7 +661,7 @@ class CoreSpectrum:
         
     def writeSpecFile(self,name):
         dt = np.dtype([('nu', 'd'), ('flux', 'd')])
-        ar = np.zeros(len(TestCore.nus),dt)
+        ar = np.zeros(len(self.nus),dt)
 
         ar['nu'] = self.nus
         ar['flux'] = self.spec

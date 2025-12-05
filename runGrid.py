@@ -32,8 +32,8 @@ def runSedona(file):
 def changeLua(file):
     mode = None
     if 'Magnetar' in file:
-        E_rot = file.find('Erot')
-        E_rot = float(file[E_rot-7:E_rot])
+        L_0 = file.find('L0')
+        L_0 = float(file[L_0-7:L_0])
         t_0 = file.find('t0_')
         t_0 = float(file[t_0-7:t_0])
         #print(E_rot, t_0)
@@ -43,7 +43,7 @@ def changeLua(file):
         mode = 'Accretion'
     newFunction = ""
     if mode == 'Magnetar':
-        newFunction = "t_0 = " + str(t_0*24*60*60) + "\nE_0 = " + str(E_rot) + "\nL_0 = E_0/t_0\nfunction core_luminosity(t)\n\tL = L_0/(1+t/t_0)/(1+t/t_0)\n\treturn L\nend\n"
+        newFunction = "t_0 = " + str(t_0*24*60*60) + "\nL_0 = " + str(L_0) + "\nfunction core_luminosity(t)\n\tL = L_0/(1+t/t_0)/(1+t/t_0)\n\treturn L\nend\n"
     with open("kilonova.lua", "r") as fin, open("./"+file[:-3]+"/kilonova.lua", "w") as fout:
         fullText = fin.read()
         ind_core = fullText.find('core_luminosity')
