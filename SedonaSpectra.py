@@ -18,7 +18,7 @@ distance = D
 
 
 class SedonaModel:
-    def __init__(self,filename=None):
+    def __init__(self,filename=None,gamma=False):
         c = 3E18 ##AA/s
         self.name = filename
         self.file = self.name[self.name.rfind('/')+1:]
@@ -26,10 +26,12 @@ class SedonaModel:
         #self.angular_indices = {}
         with h5py.File(filename, "r") as f:
             self.freq = np.array(f['nu'])
-            
             self.time = np.array(f['time'])/(60*60*24)
             self.mu   = np.array(f['mu'])
             self.Lnu  = np.array(f['Lnu']).reshape((len(self.time),len(self.freq),len(self.mu)))
+            if gamma:
+                self.freq *= 1.60218e-6/h
+                self.Lnu *= h/1.60218e-6
             self.mu_edges = np.array(f['mu_edges'])
             self.AA   = c/self.freq #AA
             FREQ = np.repeat(np.repeat(self.freq[np.newaxis,:],len(self.time),axis=0)[:,:,np.newaxis],len(self.mu),axis=2)
@@ -317,6 +319,7 @@ class SedonaModel:
         for q in n_mu:
             Y = self.getSpec(time=t_obs,angle=np.arccos(self.mu[q])*180/np.pi,mode=mode,symmetric=symmetric)[0]
             plt.errorbar(Xs,Y,color=sm.to_rgba(np.arccos(self.mu[q])*180/np.pi),label=round(np.arccos(self.mu[q])*180/np.pi,0),linestyle=style)
+            
 
         
 class TwoComponent(SedonaModel):

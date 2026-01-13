@@ -247,7 +247,7 @@ class Atom:
         self.radio = np.zeros(self.n_ions)
         self.photo = np.zeros(self.n_ions)
         self.recomb = np.zeros(self.n_ions)
-        alpha = 3E-11*((self.temp/1E4)**-0.75)#-(1/3)*(self.temp/1E4)**-0.5)*self.ne
+        alpha = 3E-13*((self.temp/1E4)**-0.75)#-(1/3)*(self.temp/1E4)**-0.5)*self.ne
         
         
         bools = np.where(0==self.level_i,True,False)
@@ -285,7 +285,7 @@ class Atom:
         self.radio = np.zeros(self.n_ions)
         self.photo = np.zeros(self.n_ions)
         self.recomb = np.zeros(self.n_ions)
-        alpha = 3E-11*((self.temp/1E4)**-0.75)
+        alpha = 3E-13*((self.temp/1E4)**-0.75)
         if includeGround == False:
             alpha -= 1/3*(self.temp/1E4)**-0.5
             if alpha < 0:

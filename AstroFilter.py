@@ -12,6 +12,8 @@ class AstroFilter:
         self.wavecenter = center #units of AA
         self.counter = counter.lower()
         
+
+        
         
 SwiftUVW2 = AstroFilter('Swift_UVOT.UVW2.dat',2.59051e-8,2130.69)
 SwiftUVM2 = AstroFilter('Swift_UVOT.UVM2.dat',2.15291e-8,2274.02)
@@ -120,3 +122,9 @@ to_model = {'u':LSSTu,'g':LSSTg,
             'W2':SwiftUVW2, 'M2':SwiftUVM2,
             'W1':SwiftUVW1, 'U':SwiftU,
             'V':SwiftV,'B':SwiftB}
+
+
+def plotFilters(filts,alp=1,factor=1):
+    for i in range(len(filts)):
+        current = to_model[filts[i]]
+        plt.errorbar(current.AA,current.Trans*factor,c=colors[filts[i]],alpha=alp)

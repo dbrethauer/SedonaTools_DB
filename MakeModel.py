@@ -27,6 +27,19 @@ class Model:
         self.singleXlan = None
         self.rho_min = rho_min
         self.grey_opacity = np.array([])
+        self.comoving = True
+        self.lorentz = np.array([])
+        
+    def toLabFrame(self):
+    
+        self.rho = self.lorentz*self.rho
+        self.volume = self.volume/self.lorentz
+        
+        print("Need to adjust rmin and rout")
+        
+        self.changeRadiusLabFrame()
+        
+        self.comoving = False
         
     def findXlan(self):
         totalLan = np.sum(self.comp[...,self.lan_ind0:self.lan_ind1],axis=-1)
@@ -85,7 +98,8 @@ class Model:
             
     def addDensityProfile(self, rhos, Xs,overrideRho=False,overrideComp=False,is_rproc=True):
     
-    
+        if not self.comoving:
+            raise Exception("Already converted to lab frame! Add density profile before converting back!")
         if overrideComp:
             bools = np.where(rhos>self.rho,True,False)
             self.comp[bools] = Xs
@@ -187,14 +201,25 @@ class Model1D(Model):
         if vk >= 1:
             print("This is in units of c, did you forget?")
         
-    def setVol(self):
+    def setVol(self,comoving=False):
         for i in range(self.n_zone):
                 if i != 0:
                     self.volume[i] = 4/3*np.pi*((self.rout[i])**3-(self.rout[i-1])**3)
                 else:
                     self.volume[i] = 4/3*np.pi*((self.rout[i])**3-self.rmin**3)
+        if comoving:
+            return 1 ###Figure out what the best path forward is - maybe make function called switch frame?
+                    
+    def changeRadiusLabFrame(self):
+        if not hasattr(self, 'vx'):
+            raise Exception("Grid has not been set yet, do that first")
+        lengths_obs = self.vx*self.time - np.insert(self.vx*self.time,0,self.rmin)[:len(self.vx)-1]
+        
+        lengths_co = lengths_obs/self.lorentz
+        
+        self.rout = np.cumsum(lengths_co)
                 
-    def setGrid(self,v_max=0.3,nonHomologous=False,rmax=1E16,vs=np.array([1,2])):
+    def setGrid(self,v_max=0.3,nonHomologous=False,rmax=1E16,vs=np.array([1,2]),v_min=0):
         if v_max >= 1:
             raise Exception("Trying to set maximum velocity higher than the speed of light!")
         if nonHomologous:
@@ -211,10 +236,11 @@ class Model1D(Model):
             self.vmax = v_max*self.c
             self.rmax = self.time*self.vmax
             self.dr   = self.rmax/(1.0*self.n_zone)
-            self.dv   = self.vmax/(1.0*self.n_zone)
-            self.vx   = np.arange(self.dv,self.vmax+0.1,self.dv)
+            self.dv   = (self.vmax-v_min*self.c)/(1.0*self.n_zone)
+            self.vx   = np.arange(v_min*self.c+self.dv,self.vmax+0.1,self.dv)
             self.rout = self.vx*self.time
         
+        self.lorentz = (1.0-(self.vx/self.c)**2)**-0.5
         self.setVol()
         
     def BrokenPowerLaw(self,mass,velocity,n_inner=1,n_outer=10,resetGrid=False,v_min=0,v_max=1):
@@ -288,6 +314,9 @@ class Model1D(Model):
         return fixed_indices
         
     def writeh5(self,name,use_rproc=True,overrideName=False):
+        if self.comoving:
+            #self.toLabFrame()
+            print("Changing variables to lab frame...")
         if overrideName:
             fout = h5py.File(name + '_1D.h5','w')
         elif use_rproc:
@@ -377,7 +406,14 @@ class Model2D(Model):
         
         self.angles = np.arctan(self.vZZ/self.vXX)
         
+        self.lorentz = (1.0-(self.vRR/self.c)**2)**-0.5
+        
         self.setVol()
+        
+    def changeRadiusLabFrame(self):
+        if not hasattr(self, 'vx') or not hasattr(self, 'vz'):
+            raise Exception("Grid has not been set yet, do that first")
+        return 1
         
     def setVol(self):
         for i in range(self.n_zone):
@@ -583,6 +619,9 @@ class Model2D(Model):
         return X1+(X0-X1)*(np.abs(self.angles/(sig*np.pi/180))**n+1)**-1
         
     def writeh5(self,overrideName=False):
+        if self.comoving:
+         #   self.toLabFrame()
+            print("Changing variables to lab frame...")
         if overrideName:
             fout = h5py.File(name + '_2D.h5','w')
         elif self.labeltheta != '':
@@ -735,7 +774,7 @@ dex_even=np.array([fe,   fe,   fe,   fe,   fe,   fe,   fe,   fe,   fe,   fe,   f
 #filter_elems = [2]
 
 
-filter_elems =[31,32,33,34,35,36,37,38,39,40,41,42,44,45,46,49,50,51,52,56,58,59,60,61,62,63,64,65,66,67,68,69,70] #Used for Brethauer+24
+filter_elems =[31,32,33,34,35,36,37,38,39,40,41,42,44,45,46,49,50,51,52,56,57,58,59,60,61,62,63,64,65,66,67,68,69,70]
 
 
 fake_rproc_elems =      {31:13,    #maximum in cmfgen is Z=28, all elemnts must be that or smaller

@@ -19,7 +19,7 @@ def setup(path,cleanup=False,coreSpec=False):
                 else:
                     os.system("cp ./kilonova.lua " + "./"+file[:-3]+"/kilonova.lua")
                 if coreSpec:
-                    os.system("cp "+path + file + "_corespec.txt " + "./"+file[:-3]+"/corespec.txt")
+                    os.system("cp "+path + file[:-3] + "_corespec.txt " + "./"+file[:-3]+"/corespec.txt")
                 runSedona(file)
                 if cleanup == True:
                     os.system("rm ./"+file[:-3]+"/model_spec*")

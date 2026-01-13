@@ -17,6 +17,7 @@ class PLT:
         self.T_gas = np.array([])
         self.T_rad = np.array([])
         self.opacity = np.array([])
+        self.planck_mean = np.array([])
         self.Jnu = np.array([])
         self.emissivity = np.array([])
         self.nu = np.array([])
@@ -28,17 +29,22 @@ class PLT:
         self.levels = {}
         self.levels_bool = levels
         self.velr = np.array([])
+        self.n_dens = {}
         if len(self.files) > 0 and 'plt_00001.h5' in self.files:
             with h5py.File(path+'/plt_00001.h5','r') as f:
                 self.velr = np.array(f['velr'])
                 self.n_zones = len(np.array(f['T_gas']))
-                self.nu = np.array(f['nu'])
-                self.dnu = np.array([self.nu[i]-self.nu[i-1] if i>0 else self.nu[0] for i in range(len(self.nu))])
-                for ky in list(f['zonedata/0'].keys()):
-                    if ky[0] == 'Z':
-                        self.atoms[ky] = np.array([])
-                        if levels:
-                            self.levels[ky] = np.array([])
+                try:
+                    self.nu = np.array(f['nu'])
+                    self.dnu = np.array([self.nu[i]-self.nu[i-1] if i>0 else self.nu[0] for i in range(len(self.nu))])
+                    for ky in list(f['zonedata/0'].keys()):
+                        if ky[0] == 'Z':
+                            self.atoms[ky] = np.array([])
+                            self.n_dens[ky] = np.array([])
+                            if levels:
+                                self.levels[ky] = np.array([])
+                except:
+                    print("No nu")
 
         else:
             print('Warning: No plt files detected!')
@@ -46,7 +52,7 @@ class PLT:
         c=3E10
         h=6.626E-27
         k = 1.38E-16
-        p1 = 3*np.log10(2*h*self.nu)-2*np.log10(c)
+        p1 = np.log10(2*h*self.nu**3)-2*np.log10(c)
         p2 = np.log10(np.exp(h*self.nu/(k*T))-1)
         return 10**(p1-p2)
     def extract_times(self):
@@ -59,6 +65,7 @@ class PLT:
         self.r_inner = np.empty(len(self.files))
         self.lengths = np.empty((self.n_zones,len(self.files)))
         self.ne = np.empty((self.n_zones,len(self.files)))
+        self.planck_mean = np.empty((self.n_zones,len(self.files)))
         for q in range(len(self.files)):
             with h5py.File(self.path+self.files[q],'r') as f:
                 self.times = np.append(self.times,np.array(f['time'])/(3600*24),axis=0)
@@ -68,6 +75,7 @@ class PLT:
                 self.rho[:,q] = np.array(f['rho'])
                 self.r[:,q] = np.array(f['r'])
                 self.r_inner[q] = np.array(f['r_inner'])
+                self.planck_mean[:,q] = np.array(f['planck_mean'])
                 
                 temp_r = self.r[:,q]
                 temp_r = np.insert(temp_r,0,self.r_inner[q])
@@ -78,6 +86,7 @@ class PLT:
             self.extract_times()
         for ky in self.atoms:
             self.atoms[ky] = np.empty((self.n_zones,len(self.times),int(ky[2:])+1))
+            self.n_dens[ky] = np.empty((self.n_zones,len(self.times)))
             
         self.opacity = np.empty((self.n_zones,len(self.times),len(self.nu)))
         self.Jnu = np.empty((self.n_zones,len(self.times),len(self.nu)))
@@ -100,6 +109,7 @@ class PLT:
                             
                         #indices are by zone, by time, then by ion
                         self.atoms[ky][z,q,:] = np.array(f['zonedata/'+str(z)+'/'+ky+'/ion_fraction'])
+                        self.n_dens[ky][z,q] = np.array(f['zonedata/'+str(z)+'/'+ky+'/n_dens'])
                         if self.levels_bool:
                             self.levels[ky][z,q,:] = np.array(f['zonedata/'+str(z)+'/'+ky+'/level_fraction'])
                         
@@ -161,18 +171,25 @@ class PLT:
         plt.title('Density',fontsize=18)
         plt.colorbar(sm,location='right',label=r'log$_{10}$(Density $\frac{g}{cm^3}$)')
         
-    def plotTgas(self,s=65,figsize=(16,12)):
+    def plotTgas(self,s=65,figsize=(16,12),Tmin=2,Tmax=5,vel=False):
 
         plt.figure(figsize=figsize)
         currentData = np.log10(self.T_gas)
-    
-        sm = plt.cm.ScalarMappable(cmap=plt.cm.coolwarm,norm=plt.Normalize(vmin=min(np.min(currentData),2),
-                                                                   vmax=min(np.max(currentData),5)))
+        
+        if vel:
+            plt.ylim(np.min(self.velr)/3E10,np.max(self.velr)/3E10)
+            plt.ylabel('Velocity (c)',fontsize=14)
+            Ys = self.velr/3E10
+        else:
+            plt.ylim(-0.1,self.n_zones+0.1)
+            plt.ylabel('Zone Number',fontsize=14)
+            Ys = np.linspace(0,self.n_zones-1,self.n_zones)
+        sm = plt.cm.ScalarMappable(cmap=plt.cm.coolwarm,norm=plt.Normalize(vmin=Tmin,
+                                                                   vmax=Tmax))
         for q in range(len(self.times)):
-            plt.scatter(self.times[q]*np.ones(self.n_zones),np.linspace(0,self.n_zones-1,self.n_zones),color=sm.to_rgba(currentData[:,q]),s=s,marker='s')
+            plt.scatter(self.times[q]*np.ones(self.n_zones),Ys,color=sm.to_rgba(currentData[:,q]),s=s,marker='s')
 
-        plt.ylim(-0.1,self.n_zones+0.1)
-        plt.ylabel('Zone Number',fontsize=14)
+        
         plt.title('Gas Temperature',fontsize=18)
         plt.colorbar(sm,location='right',label=r'log$_{10}$(Temperature/K)')
         
@@ -199,15 +216,22 @@ class PLT:
         plt.scatter(self.times,currentData,color='black',s=50)
 
     #def calcPlanckOpacity(self):
-    def plotAllIons(self,Z=60,max_ion=3,s=65,figsize=(12,12),fill=True,f=-0.5,vel=False):
+    def plotAllIons(self,Z=60,max_ion=3,s=65,figsize=(12,12),fill=True,f=-0.5,vel=False,logTime=False,radius=False):
         fig = plt.figure(figsize=figsize)
-        plt.ylim(-0.1,self.n_zones+0.1-1)
-        plt.xlim(-0.1,max(self.times)+0.1)
         if vel:
+            plt.ylim(np.min(self.velr)/3E10,np.max(self.velr)/3E10)
             plt.ylabel('Velocity (c)',fontsize=14)
+        elif radius:
+            plt.ylim(np.min(self.r),np.max(self.r))
+            plt.ylabel('Radius (cm)',fontsize=14)
         else:
+            plt.ylim(-0.1,self.n_zones+0.1-1)
             plt.ylabel('Zone Number',fontsize=14)
+        plt.xlim(-0.1,max(self.times)+0.1)
         plt.xlabel('Days', fontsize=14)
+        if logTime:
+            plt.xlim(np.min(self.times),)
+            plt.xscale('log')
         plt.tick_params(axis='both', which='major', labelsize=18)
         ky = 'Z_'+str(Z)
         allTimes = np.ones((self.n_zones,len(self.times)))
@@ -218,10 +242,12 @@ class PLT:
         if vel:
             for q in range(np.shape(allZones)[1]):
                 allZones[:,q] = self.velr/3E10
+        elif radius:
+            allZones = self.r
         else:
             for q in range(np.shape(allZones)[1]):
                 allZones[:,q] = zones
-        colorsSchemes = [plt.cm.Greys,plt.cm.Purples,plt.cm.Blues,plt.cm.Greens,plt.cm.Oranges]
+        colorsSchemes = [plt.cm.Greys,plt.cm.Purples,plt.cm.Blues,plt.cm.Greens,plt.cm.Oranges,plt.cm.Reds,plt.cm.BuPu,plt.cm.GnBu,plt.cm.YlGn,plt.cm.PuRd,plt.cm.Greys,plt.cm.RdPu]
         if fill:
             allOffs = np.ones((self.n_zones,len(self.times)))
             dif = 1.1*(self.times[len(self.times)-1]-self.times[len(self.times)-2]) #assumes last time step has achieved maximum

@@ -28,9 +28,9 @@ iso.daughter_A      = 1
 iso.t_halflife_in_s = 613.9
 iso.e_decay_in_keV  = 302.772032134
 iso.f_lepton_KE     = 1.0
-iso.n_gamma         = 0
-iso.q_gamma_in_keV  = []
-iso.i_gamma         = []
+iso.n_gamma         = 1 #fake info
+iso.q_gamma_in_keV  = [500] #fake info
+iso.i_gamma         = [100] #fake info
 iso.add_to_file(fname)
 
 #Stable Hydrogen
