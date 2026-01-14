@@ -4,7 +4,7 @@ import h5py
 
 
 def makehdf5(root,Z,I,file=None):
-    currentRoot = root+f'{Z}/{Z}_{I+1}/'
+    currentRoot = root+f'/{Z}_{I+1}/'
     #print(currentRoot)
     ion_chi, level_E, level_cs, level_g, level_i, line_A, line_l, line_u, n_levels, n_lines = makeIonGroup(currentRoot)
     file.create_group(ky+'/'+str(ion))
@@ -25,7 +25,8 @@ def makehdf5(root,Z,I,file=None):
     file.create_dataset(Z+'/'+str(I)+'/line_u',data=line_u,dtype='uint',shape=(n_lines,))
     file.create_dataset(Z+'/'+str(I)+'/line_l',data=line_l,dtype='uint',shape=(n_lines,))
     
-def makeIonGroup(currentRoot):
+
+def makeIonGroup(currentRoot,removeAuto=True):
     ion_chi = 0
     level_E = np.array([])
     level_cs = np.array([])
@@ -43,9 +44,24 @@ def makeIonGroup(currentRoot):
     level_g = np.array(levels['stat._weight'])
     level_E = np.array(levels['energy[eV]'])
     
+
+    
     line_u = np.array(transitions['numUlev'])-1
+    
+
     line_l = np.array(transitions['numLlev'])-1
     line_A = np.array(transitions['G*Einstein'])/level_g[line_u]
+    
+    if removeAuto:
+        #Assumes all levels are in order from lowest energy to highest
+        ind = np.searchsorted(level_E,ion_chi)
+        level_E = level_E[:ind]
+        level_g = level_g[:ind]
+        
+        bools = np.where((line_u<ind)&(line_l<ind),True,False)
+        line_u = line_u[bools]
+        line_l = line_l[bools]
+        line_A = line_A[bools]
     
     n_levels = len(level_E)
     n_lines = len(line_A)
@@ -55,8 +71,12 @@ def makeIonGroup(currentRoot):
     
     
     return ion_chi, level_E, level_cs, level_g, level_i, line_A, line_l, line_u, n_levels, n_lines
+    
 
-
+def getIons(root,Z):
+    ions = ['0','1','2','3','4','5','6','7','8','9','10']
+    currentFile = currentRoot+Z
+    
 def getTransitions(currentRoot):
     transition = pd.read_csv(currentRoot+'ga.crm',
                     skiprows=9,
@@ -75,9 +95,11 @@ def getTransitions(currentRoot):
 def getEnergyLevels(currentRoot):
     #file = 'enr.crm'
     level_pattern = r'^(\S+)\s+(\S+)\s+(\S+)\s+(\S+)\s+(\{.*?\})\s+(\S+)\s+(\S+)\s+(.*)$'
+    
+    head_ind = findHeaderRow(currentRoot+'enr.crm')+1
 
     table = pd.read_csv(currentRoot+'enr.crm',
-                    skiprows=12,
+                    skiprows=head_ind,
                     sep=level_pattern,
                     engine='python',
                     on_bad_lines='skip',
@@ -96,6 +118,16 @@ def getEnergyLevels(currentRoot):
     table = table[['level_name','energy[eV]','stat._weight']]
     
     return ion_chi, table
+
+def findHeaderRow(filename):
+    with open(filename) as f:
+        for i, line in enumerate(f):
+            #print(line)
+            #print('new line')
+            if line.startswith('level_name',1):
+                return i
+    raise RuntimeError("Header not found")
+    
     
     
     
