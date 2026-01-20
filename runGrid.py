@@ -1,7 +1,7 @@
 import os
 import numpy as np
 
-def setup(path,cleanup=False,coreSpec=False):
+def setup(path,cleanup=False,coreSpec=False,OMP_THREADS=32,use_parallel=False,n_par=4):
     files = os.listdir(path)
     if os.path.exists('./FinalSpectra') == False:
         os.mkdir('./FinalSpectra')
@@ -20,13 +20,16 @@ def setup(path,cleanup=False,coreSpec=False):
                     os.system("cp ./kilonova.lua " + "./"+file[:-3]+"/kilonova.lua")
                 if coreSpec:
                     os.system("cp "+path + file[:-3] + "_corespec.txt " + "./"+file[:-3]+"/corespec.txt")
-                runSedona(file)
+                runSedona(file,OPM_THREADS=OMP_THREADS,use_parallel=use_parallel,n_par=n_par)
                 if cleanup == True:
                     os.system("rm ./"+file[:-3]+"/model_spec*")
                     os.system("rm ./"+file[:-3]+"/plt*")
 
-def runSedona(file):
-   os.system("cd ./" + file[:-3] + "; sedona6.ex kilonova.lua; cd ./..")
+def runSedona(file,OMP_THREADS=32,use_parallel=False,n_par=4):
+   if use_parallel:
+       os.system("cd ./" + file[:-3] + "; export OMP_NUM_THREADS="+str(OMP_THREADS)+"; mpirun -n " + str(n_par) + " sedona6.ex kilonova.lua; cd ./..")
+   else:
+       os.system("cd ./" + file[:-3] + "; sedona6.ex kilonova.lua; cd ./..")
    os.system("mv ./" + file[:-3] + "/model_spec_final.h5 ./FinalSpectra/"+file[:-3]+"_spec_final.h5")
    
 def changeLua(file):
@@ -64,6 +67,6 @@ def changeLua(file):
         fout.write(newText)
         
 
-setup("/home/dbrethauer/kn_project/grid/grid_practice/models/",cleanup=False)
+#setup("/home/dbrethauer/kn_project/grid/grid_practice/models/",cleanup=False)
 #changeLua('Magnetar_1.0E+49Erot_5.0E-01t0_3E-2M_0.1v_1D.h5')
 
