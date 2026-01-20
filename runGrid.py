@@ -20,7 +20,7 @@ def setup(path,cleanup=False,coreSpec=False,OMP_THREADS=32,use_parallel=False,n_
                     os.system("cp ./kilonova.lua " + "./"+file[:-3]+"/kilonova.lua")
                 if coreSpec:
                     os.system("cp "+path + file[:-3] + "_corespec.txt " + "./"+file[:-3]+"/corespec.txt")
-                runSedona(file,OPM_THREADS=OMP_THREADS,use_parallel=use_parallel,n_par=n_par)
+                runSedona(file,OMP_THREADS=OMP_THREADS,use_parallel=use_parallel,n_par=n_par)
                 if cleanup == True:
                     os.system("rm ./"+file[:-3]+"/model_spec*")
                     os.system("rm ./"+file[:-3]+"/plt*")
