@@ -171,6 +171,31 @@ class Model:
     def expand(self,t_new):
         return self.rho*(t_new/self.time)**-3
         
+    def decayNeutron(self):
+        E_decay = 302.772032134 #keV
+        t_half_0 = 613.9 #s
+        t_half_f = self.lorentz*t_half_0
+        N_ind = np.searchsorted(self.Z,0)
+        H_ind = np.searchsorted(self.Z,1)
+        mp = 1.6726E-24
+        
+        deltaN = self.comp[...,N_ind]*2**(-self.time/t_half_f) -self.comp[...,N_ind]
+        
+        self.comp[...,N_ind] += deltaN
+        self.comp[...,H_ind] -= deltaN
+        
+        bonusE = (1.60218e-9*E_decay)*(self.rho)/(mp)*np.abs(deltaN) #assume 100% thermalization, returns erg/cm^3
+        
+        eps_0 = self.temp**4*self.arad
+        
+        eps_f = eps_0+bonusE
+        
+        self.temp = (eps_f/self.arad)**0.25
+        
+        
+        
+    
+        
 
     
 class Model1D(Model):
@@ -269,7 +294,7 @@ class Model1D(Model):
         return currentRho
         #self.setTemp(use_rproc=use_rproc)
         
-    def ConstantDensity(self,mass,vmax=0.3,v_cut=0.3,v_min=0,resetGrid=False):
+    def ConstantDensity(self,mass,vmax=0.3,v_cut=1,v_min=0,resetGrid=False):
         
         if resetGrid or not hasattr(self, 'vx'):
             self.vmax = vmax*self.c
