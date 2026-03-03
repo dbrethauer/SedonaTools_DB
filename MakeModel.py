@@ -186,9 +186,12 @@ class Model:
         
         bonusE = (1.60218e-9*E_decay)*(self.rho)/(mp)*np.abs(deltaN) #assume 100% thermalization, returns erg/cm^3
         
+        
         eps_0 = self.temp**4*self.arad
         
         eps_f = eps_0+bonusE
+        
+        #print(bonusE,eps_0,bonusE/eps_0)
         
         self.temp = (eps_f/self.arad)**0.25
         
@@ -665,7 +668,7 @@ class Model2D(Model):
         fout.create_dataset('Xrproc',data=self.X_rproc,dtype='d')
         fout.create_dataset('comp',data=self.comp,dtype='d')
     #    fout.create_dataset('r_out',data=rRR,dtype='d')
-        fout.create_dataset('rmin',data=[self.rmin,-1*self.rmax_x],dtype='d')
+        fout.create_dataset('rmin',data=[self.rmin,-1*self.rmax_z],dtype='d')
         fout.create_dataset('erad',data=self.erad,dtype='d')
         fout.create_dataset('x_out',data=self.vx*self.time,dtype='d')
         fout.create_dataset('z_out',data=self.vz*self.time,dtype='d')
