@@ -424,7 +424,7 @@ class Model2D(Model):
             self.rmax_z = rmax_z
             self.rmax_x = rmax_x
             self.dr_x   = self.rmax_x/(1.0*self.n_zone)
-            self.dr_z   = self.rmax_z/(2.0*self.n_zone)
+            self.dr_z   = self.rmax_z/(1.0*self.n_zone)
             self.rout_x = np.arange(self.dr_x,self.rmax_x+self.dr_x/2,self.dr_x)
             self.rout_z = np.arange(-1.0*self.rmax_z+self.dr_z,self.rmax_z+self.dr_z/2,self.dr_z)
             
@@ -457,6 +457,9 @@ class Model2D(Model):
             self.vRR = (self.vXX**2+self.vZZ**2)**0.5
         
             self.angles = np.arctan(self.vZZ/self.vXX)
+            
+            self.rout_x = self.vx*self.time
+            self.rout_z = self.vz*self.time
         
         self.lorentz = (1.0-(self.vRR/self.c)**2)**-0.5
         
@@ -470,9 +473,9 @@ class Model2D(Model):
     def setVol(self):
         for i in range(self.n_zone):
             if i == 0:
-                self.volume[i] = np.pi*((self.dv_x*self.time)**2-self.rmin**2)*self.dr_z*np.ones(len(self.volume[i]))
+                self.volume[i] = np.pi*((self.dr_x)**2-self.rmin**2)*self.dr_z*np.ones(len(self.volume[i]))
             else:
-                self.volume[i] = np.pi*((self.vx[i]*self.time)**2-(self.vx[i-1]*self.time)**2)*self.dr_z*np.ones(len(self.volume[i]))
+                self.volume[i] = np.pi*((self.rout_x[i])**2-(self.rout_x[i-1])**2)*self.dr_z*np.ones(len(self.volume[i]))
                 
     def BrokenPowerLaw(self,mass,velocity,n_inner=1,n_outer=10,resetGrid=False,v_min=0,v_max=1,vx0=0,vz0=0):
         if n_inner == 3 or n_outer == 3 or n_inner == 5 or n_outer == 5:
@@ -631,7 +634,7 @@ class Model2D(Model):
         cbar.set_label(label1,fontsize=18)
 
         if mirror:
-            plt.scatter(Xs,self.Ys,c=colors,s=size)
+            plt.scatter(Xs,Ys,c=colors,s=size)
             plt.scatter(-1*Xs,Ys,c=colors,s=size)
         else:
             plt.scatter(Xs,Ys,c=colors,s=size)
@@ -704,8 +707,8 @@ class Model2D(Model):
     #    fout.create_dataset('r_out',data=rRR,dtype='d')
         fout.create_dataset('rmin',data=[self.rmin,-1*self.rmax_z],dtype='d')
         fout.create_dataset('erad',data=self.erad,dtype='d')
-        fout.create_dataset('x_out',data=self.vx*self.time,dtype='d')
-        fout.create_dataset('z_out',data=self.vz*self.time,dtype='d')
+        fout.create_dataset('x_out',data=self.rout_x,dtype='d')
+        fout.create_dataset('z_out',data=self.rout_z,dtype='d')
 
 
 class CoreSpectrum:
