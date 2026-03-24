@@ -14,7 +14,7 @@ def setup(path,cleanup=False,coreSpec=False,OMP_THREADS=32,use_parallel=False,n_
                 if os.path.exists("./"+file[:-3]) == False:
                     os.mkdir("./"+file[:-3])
                 os.system("cp "+path + file + " " + "./"+file[:-3]+"/model.h5")
-                if 'Magnetar' or 'Accretion' in file:
+                if 'Magnetar' in file or 'Accretion' in file:
                     changeLua(file)
                 else:
                     os.system("cp ./kilonova.lua " + "./"+file[:-3]+"/kilonova.lua")
