@@ -410,29 +410,53 @@ class Model2D(Model):
         
     
         
-    def setGrid(self,vmax_x,vmax_z):
+    def setGrid(self,vmax_x=0.3,vmax_z=0.3,v_max=0.3,nonHomologous=False,rmax_x=1E16,rmax_z=1E16,vs=np.array([1,2]),vmin_x=0):
         if vmax_x >= 1 or vmax_z >= 1:
             raise Exception("Trying to set maximum velocity higher than the speed of light!")
-        self.vmax_x = vmax_x*self.c
-        self.vmax_z = vmax_z*self.c
-        self.rmax_x = self.time*self.vmax_x
-        self.rmax_z = self.time*self.vmax_z
-        self.dr_x   = self.rmax_x/(1.0*self.n_zone)
-        self.dv_x   = self.vmax_x/(1.0*self.n_zone)
-        self.dr_z   = self.rmax_z/(1.0*self.n_zone)
-        self.dv_z   = self.vmax_z/(1.0*self.n_zone)
+            
+        if nonHomologous:
+            if type(vs) == float:
+                self.vRR = vs*np.ones(np.shape(self.rho))
+            elif np.shape(self.rho) == np.shape(vs):
+                self.vRR = vs
+            else:
+                raise Exception("Using non-homologous velocities and input velocities are not ")
+            self.rmax_z = rmax_z
+            self.rmax_x = rmax_x
+            self.dr_x   = self.rmax_x/(1.0*self.n_zone)
+            self.dr_z   = self.rmax_z/(2.0*self.n_zone)
+            self.rout_x = np.arange(self.dr_x,self.rmax_x+self.dr_x/2,self.dr_x)
+            self.rout_z = np.arange(-1.0*self.rmax_z+self.dr_z,self.rmax_z+self.dr_z/2,self.dr_z)
+            
+            
+            self.rRR = np.sqrt(self.rout_x[:,np.newaxis]**2+self.rout_z[np.newaxis,:]**2)
+            self.angles = np.arctan(self.rout_z[np.newaxis,:]/self.rout_x[:,np.newaxis])
+            
+            self.rXX = np.cos(self.angles)*self.rRR
+            self.rZZ = np.sin(self.angles)*self.rRR
+            
+            
+        else:
+            self.vmax_x = vmax_x*self.c
+            self.vmax_z = vmax_z*self.c
+            self.rmax_x = self.time*self.vmax_x
+            self.rmax_z = self.time*self.vmax_z
+            self.dr_x   = self.rmax_x/(1.0*self.n_zone)
+            self.dv_x   = self.vmax_x/(1.0*self.n_zone)
+            self.dr_z   = self.rmax_z/(1.0*self.n_zone)
+            self.dv_z   = self.vmax_z/(1.0*self.n_zone)
         
-        self.vx   = np.arange(self.dv_x,self.vmax_x+0.1,self.dv_x)
-        self.vz   = np.arange(-1.0*self.vmax_z + self.dv_z,self.vmax_z+0.1,self.dv_z)-self.dv_z/2
+            self.vx   = np.arange(self.dv_x,self.vmax_x+0.1,self.dv_x)
+            self.vz   = np.arange(-1.0*self.vmax_z + self.dv_z,self.vmax_z+0.1,self.dv_z)-self.dv_z/2
         
-        self.vXX = np.repeat(self.vx[:,np.newaxis],np.shape(self.rho)[1],axis=1)
+            self.vXX = np.repeat(self.vx[:,np.newaxis],np.shape(self.rho)[1],axis=1)
 
-        self.vZZ = np.reshape(self.vz,(1,-1))[0]
-        self.vZZ = np.repeat(self.vZZ[np.newaxis,:],self.n_zone,axis=0)
+            self.vZZ = np.reshape(self.vz,(1,-1))[0]
+            self.vZZ = np.repeat(self.vZZ[np.newaxis,:],self.n_zone,axis=0)
 
-        self.vRR = (self.vXX**2+self.vZZ**2)**0.5
+            self.vRR = (self.vXX**2+self.vZZ**2)**0.5
         
-        self.angles = np.arctan(self.vZZ/self.vXX)
+            self.angles = np.arctan(self.vZZ/self.vXX)
         
         self.lorentz = (1.0-(self.vRR/self.c)**2)**-0.5
         
@@ -578,13 +602,24 @@ class Model2D(Model):
         
         
                 
-    def plotProp(self,prop1,prop2=None,log1=True,log2=True,label1='Unlabeled',label2='Unlabeled',size=14,mirror=True,forceEqual=False):
+    def plotProp(self,prop1,prop2=None,log1=True,log2=True,label1='Unlabeled',label2='Unlabeled',size=14,mirror=True,forceEqual=False,homologous=True):
         currentVariable = prop1
         if log1:
             currentVariable = np.log10(prop1)
         currentVariable2 = prop2
         if log2 and np.shape(prop2) == np.shape(self.rho):
             currentVariable2 = np.log10(prop2)
+            
+        if homologous:
+            Xs = self.vXX.flatten()/self.c
+            Ys = self.vZZ.flatten()/self.c
+            plt.xlabel('Vx (c)',fontsize=14)
+            plt.ylabel('Vz (c)',fontsize=14)
+        else:
+            Xs = self.rXX.flatten()
+            Ys = self.rZZ.flatten()
+            plt.xlabel('Rx (cm)',fontsize=14)
+            plt.ylabel('Rz (cm)',fontsize=14)
             
         sm = plt.cm.ScalarMappable(cmap=plt.cm.coolwarm,norm=plt.Normalize(vmin=np.min(currentVariable),
                                                                    vmax=np.max(currentVariable)))
@@ -596,31 +631,30 @@ class Model2D(Model):
         cbar.set_label(label1,fontsize=18)
 
         if mirror:
-            plt.scatter(self.vXX.flatten()/self.c,self.vZZ.flatten()/self.c,c=colors,s=size)
-            plt.scatter(-1*self.vXX.flatten()/self.c,self.vZZ.flatten()/self.c,c=colors,s=size)
+            plt.scatter(Xs,self.Ys,c=colors,s=size)
+            plt.scatter(-1*Xs,Ys,c=colors,s=size)
         else:
-            plt.scatter(self.vXX.flatten()/self.c,self.vZZ.flatten()/self.c,c=colors,s=size)
+            plt.scatter(Xs,Ys,c=colors,s=size)
 
             sm = plt.cm.ScalarMappable(cmap=plt.cm.PiYG,norm=plt.Normalize(vmin=np.min(currentVariable2),
                                                                    vmax=np.max(currentVariable2)))
             colors= sm.to_rgba(currentVariable2.flatten())
-            plt.scatter(-1*self.vXX.flatten()/self.c,self.vZZ.flatten()/self.c,c=colors,s=size)
+            plt.scatter(-1*Xs,Ys,c=colors,s=size)
 #    plt.colorbar(sm,label=r'log$_{10}$ (X$_{lan}$)',location='left')
             cbar = plt.colorbar(sm,label=label2,location='left',pad=0.1)
 
             cbar.ax.tick_params(labelsize=18)
             cbar.set_label(label2,fontsize=18)
-        plt.xlabel('Vx (c)',fontsize=14)
-        plt.ylabel('Vz (c)',fontsize=14)
+
         plt.tick_params(axis='both', which='major', labelsize=18)
 
-        plt.ylim(-1*max(self.vz/self.c),max(self.vz/self.c))
-        plt.xlim(-1*max(self.vx/self.c),max(self.vx/self.c))
+        plt.ylim(-1*max(Ys),max(Ys))
+        plt.xlim(-1*max(Xs),max(Xs))
 
         if forceEqual:
-            grande = max(np.max(self.vz),np.max(self.vx))
-            plt.ylim(-1*grande/self.c,grande/self.c)
-            plt.xlim(-1*grande/self.c,grande/self.c)
+            grande = max(np.max(Ys),np.max(Xs))
+            plt.ylim(-1*grande,grande)
+            plt.xlim(-1*grande,grande)
             
     def GaussXlan(self,X0=None,X1=None,sig=None):
         if X0<=X1:
