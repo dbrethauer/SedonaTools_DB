@@ -372,8 +372,8 @@ class Model1D(Model):
                 
     
 class Model2D(Model):
-    def __init__(self,n_zone=80,Z_inc=np.array([1]),A_inc=np.array([1]),time=0.25*days,rmin=0):
-        super().__init__(Z_inc=Z_inc,A_inc=A_inc,time=time)
+    def __init__(self,n_zone=80,Z_inc=np.array([1]),A_inc=np.array([1]),time=0.25*days,rmin=0,rho_min=1e-20):
+        super().__init__(Z_inc=Z_inc,A_inc=A_inc,time=time,rho_min=rho_min)
         n_z = 2*n_zone
         self.temp = np.zeros((n_zone,n_z))
         self.rho = np.zeros((n_zone,n_z))
