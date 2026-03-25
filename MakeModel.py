@@ -435,6 +435,9 @@ class Model2D(Model):
             self.rXX = np.cos(self.angles)*self.rRR
             self.rZZ = np.sin(self.angles)*self.rRR
             
+            self.vXX = np.cos(self.angles)*self.vRR
+            self.vZZ = np.sin(self.angles)*self.vRR
+            
             
         else:
             self.vmax_x = vmax_x*self.c
@@ -683,7 +686,7 @@ class Model2D(Model):
         self.labeltheta = sig
         return X1+(X0-X1)*(np.abs(self.angles/(sig*np.pi/180))**n+1)**-1
         
-    def writeh5(self,overrideName=False):
+    def writeh5(self,overrideName=False,name=None):
         if self.comoving:
          #   self.toLabFrame()
             print("Changing variables to lab frame...")
