@@ -18,7 +18,7 @@ distance = D
 
 
 class SedonaModel:
-    def __init__(self,filename=None,gamma=False):
+    def __init__(self,filename=None,gamma=False,polarization=False):
         c = 3E18 ##AA/s
         self.name = filename
         self.file = self.name[self.name.rfind('/')+1:]
@@ -36,6 +36,10 @@ class SedonaModel:
             self.AA   = c/self.freq #AA
             FREQ = np.repeat(np.repeat(self.freq[np.newaxis,:],len(self.time),axis=0)[:,:,np.newaxis],len(self.mu),axis=2)
             self.Llam = FREQ**2*(self.Lnu)/c #erg/s/AA
+            if polarization:
+                self.Q = np.array(f['Q'])
+                self.U = np.array(f['U'])
+                self.V = np.array(f['V'])
     def getAngleInd(self,angle=None):
         angle_cos = np.cos(angle*np.pi/180)
         angle_ind = np.searchsorted(self.mu_edges,angle_cos)
@@ -94,8 +98,9 @@ class SedonaModel:
         if angle_ind == None:
             angle_ind = self.getAngleInd(angle=angle)
         spec = self.getSpec(time,'nu',angle_ind=angle_ind,symmetric=symmetric)
-        PseudoSpec = spec[(self.freq >= nu_min)&(self.freq<=nu_max)]
-        PseudoFreq = self.freq[(self.freq >= nu_min)&(self.freq<=nu_max)]
+        #print(np.shape(spec))
+        PseudoSpec = spec[...,(self.freq >= nu_min)&(self.freq<=nu_max)]
+        PseudoFreq = self.freq[...,(self.freq >= nu_min)&(self.freq<=nu_max)]
         return integrate.trapezoid(PseudoSpec,PseudoFreq)
     def getPseudoLumCurve(self,nu_max=(3E18/3000),nu_min=(3E18/25000),angle=0,angle_ind=None,symmetric=False):
         if angle_ind == None:
@@ -266,14 +271,19 @@ class SedonaModel:
                     self.curves[q] = np.array(f[self.file+'/'+q])
                     
                     
-    def plotTimeSeriesSpec(self,t_low=1,t_high=5,spacing=1,angle=90,style='-',mode='lam',symmetric=False):
+    def plotTimeSeriesSpec(self,t_low=1,t_high=5,spacing=1,angle=90,style='-',mode='lam',symmetric=False,log=False):
+        
         sm = plt.cm.ScalarMappable(cmap=plt.cm.coolwarm,
                                     norm=plt.Normalize(vmin=t_low,
                                     vmax=t_high))
 
         ts = np.arange(t_low,t_high+spacing,spacing)
-        colors = sm.to_rgba(ts)
         
+        if log:
+            ts = 10**ts
+            colors = sm.to_rgba(np.log10(ts))
+        else:
+            colors = sm.to_rgba(ts)
         if mode == 'lam':
             Xs = self.AA
             plt.xlabel('Wavelength ($\AA$)',fontsize=14)
@@ -284,12 +294,16 @@ class SedonaModel:
             plt.ylabel("Specific Flux (erg/s/cm$^2$/Hz)",fontsize=14)
 
         for q in range(len(ts)):
-            plt.errorbar(Xs,self.getSpec(ts[q],mode,angle=angle,symmetric=symmetric)[0],color=colors[q],label="t = " + str(ts[q]) + " days",linestyle=style)
+            plt.errorbar(Xs,self.getSpec(ts[q],mode,angle=angle,symmetric=symmetric)[0],color=colors[q],label="t = " + str(round(ts[q],2)) + " days",linestyle=style)
         plt.xscale('log')
         plt.colorbar(sm,location='right')#,label='Days since Merger')
         y_low, y_high = plt.ylim()
         x_low, x_high = plt.xlim()
-        plt.text(1.25*x_high,(y_low+y_high)/2,"Time since Merger (d)",ha='center',va='center',rotation='vertical',fontsize=14)
+        
+        if log:
+            plt.text(1.25*x_high,10**((np.log10(y_low)+np.log10(y_high))/2),"Time since Merger (d)",ha='center',va='center',rotation='vertical',fontsize=14)
+        else:
+            plt.text(1.25*x_high,(y_low+y_high)/2,"Time since Merger (d)",ha='center',va='center',rotation='vertical',fontsize=14)
 
         plt.ylim(y_low,y_high)
         
@@ -319,6 +333,7 @@ class SedonaModel:
         for q in n_mu:
             Y = self.getSpec(time=t_obs,angle=np.arccos(self.mu[q])*180/np.pi,mode=mode,symmetric=symmetric)[0]
             plt.errorbar(Xs,Y,color=sm.to_rgba(np.arccos(self.mu[q])*180/np.pi),label=round(np.arccos(self.mu[q])*180/np.pi,0),linestyle=style)
+
             
 
         
