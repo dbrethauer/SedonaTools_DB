@@ -5,12 +5,14 @@ import os
 import math
 
 class PLT:
-    def __init__(self,path,levels=False):
+    def __init__(self,path,levels=False,dim=1):
         self.path = path
         self.files = os.listdir(path)
         self.files = [file for file in self.files if 'plt' == file[:3] and '.h5' == file[-3:]]
         self.files.sort()
-        self.files = self.files[1:] #removes plt_00000.h5 since it doesn't contain info
+        if 'plt_00000.h5' in self.files:
+            self.files.remove('plt_00000.h5')
+        #self.files = self.files[1:] #removes plt_00000.h5 since it doesn't contain info
         self.atoms = {}
         self.times = np.array([])
         self.rho = np.array([])
@@ -30,10 +32,16 @@ class PLT:
         self.levels_bool = levels
         self.velr = np.array([])
         self.n_dens = {}
-        if len(self.files) > 0 and 'plt_00001.h5' in self.files:
-            with h5py.File(path+'/plt_00001.h5','r') as f:
+        self.dim = dim
+        if len(self.files) > 0:
+            with h5py.File(path+'/'+self.files[0],'r') as f:
                 self.velr = np.array(f['velr'])
-                self.n_zones = len(np.array(f['T_gas']))
+                if self.dim == 2:
+                    self.velz = np.array(f['velz'])
+                self.n_zones = np.shape(np.array(f['T_gas']))
+                self.total_zones = 1
+                for i in range(len(self.n_zones)):
+                    self.total_zones *= self.n_zones[i]
                 try:
                     self.nu = np.array(f['nu'])
                     self.dnu = np.array([self.nu[i]-self.nu[i-1] if i>0 else self.nu[0] for i in range(len(self.nu))])
@@ -57,45 +65,60 @@ class PLT:
         return 10**(p1-p2)
     def extract_times(self):
 
-        self.T_gas = np.empty((self.n_zones,len(self.files)))
-        self.T_rad = np.empty((self.n_zones,len(self.files)))
-        self.rho = np.empty((self.n_zones,len(self.files)))
-        self.r = np.empty((self.n_zones,len(self.files)))
+        self.T_gas = np.empty(self.n_zones+(len(self.files),))
+        self.T_rad = np.empty(self.n_zones+(len(self.files),))
+        self.rho = np.empty(self.n_zones+(len(self.files),))
+        self.r = np.empty((self.n_zones[0],)+(len(self.files),))
         #self.velr = np.empty((self.n_zones,len(self.files)))
-        self.r_inner = np.empty(len(self.files))
-        self.lengths = np.empty((self.n_zones,len(self.files)))
-        self.ne = np.empty((self.n_zones,len(self.files)))
-        self.planck_mean = np.empty((self.n_zones,len(self.files)))
+        if self.dim == 1:
+            self.r_inner = np.empty(len(self.files))
+        elif self.dim == 2:
+            self.x_min = np.empty(len(self.files))
+            self.z_min = np.empty(len(self.files))
+            
+            self.z = np.empty((self.n_zones[1],)+(len(self.files),))
+        elif self.dim == 3:
+            self.x_min = np.empty(len(self.files))
+            self.z_min = np.empty(len(self.files))
+            self.y_min = np.empty(len(self.files))
+        else:
+            raise Exception("Incorrect number of dimensions given: " + str(self.dim))
+        self.lengths = np.empty(self.n_zones+(len(self.files),))
+        self.ne = np.empty(self.n_zones+(len(self.files),))
+        self.planck_mean = np.empty(self.n_zones+(len(self.files),))
         for q in range(len(self.files)):
             with h5py.File(self.path+self.files[q],'r') as f:
                 self.times = np.append(self.times,np.array(f['time'])/(3600*24),axis=0)
-                self.T_gas[:,q] = np.array(f['T_gas'])
-                self.T_rad[:,q] = np.array(f['T_rad'])
-                self.ne[:,q] = np.array(f['n_elec'])
-                self.rho[:,q] = np.array(f['rho'])
-                self.r[:,q] = np.array(f['r'])
-                self.r_inner[q] = np.array(f['r_inner'])
-                self.planck_mean[:,q] = np.array(f['planck_mean'])
+                self.T_gas[...,q] = np.array(f['T_gas'])
+                self.T_rad[...,q] = np.array(f['T_rad'])
+                self.ne[...,q] = np.array(f['n_elec'])
+                self.rho[...,q] = np.array(f['rho'])
+                self.r[...,q] = np.array(f['r'])
+                if self.dim == 1:
+                    self.r_inner[q] = np.array(f['r_inner'])
+                    temp_r = self.r[...,q]
+                    temp_r = np.insert(temp_r,0,self.r_inner[q])
+                    self.lengths[...,q] = self.r[...,q]-temp_r[:-1]
+                    self.planck_mean[...,q] = np.array(f['planck_mean'])
+                elif self.dim == 2:
+                    self.z[...,q] = np.array(f['z'])
                 
-                temp_r = self.r[:,q]
-                temp_r = np.insert(temp_r,0,self.r_inner[q])
-                self.lengths[:,q] = self.r[:,q]-temp_r[:-1]
+                
                     
     def extract_ions(self):
         if len(self.times) == 0:
             self.extract_times()
         for ky in self.atoms:
-            self.atoms[ky] = np.empty((self.n_zones,len(self.times),int(ky[2:])+1))
-            self.n_dens[ky] = np.empty((self.n_zones,len(self.times)))
+            self.atoms[ky] = np.empty((self.total_zones,len(self.times),int(ky[2:])+1))
+            self.n_dens[ky] = np.empty((self.total_zones,len(self.times)))
             
-        self.opacity = np.empty((self.n_zones,len(self.times),len(self.nu)))
-        self.Jnu = np.empty((self.n_zones,len(self.times),len(self.nu)))
-        self.emissivity = np.empty((self.n_zones,len(self.times),len(self.nu)))
+        self.opacity = np.empty((self.total_zones,len(self.times),len(self.nu)))
+        self.Jnu = np.empty((self.total_zones,len(self.times),len(self.nu)))
+        self.emissivity = np.empty((self.total_zones,len(self.times),len(self.nu)))
         for q in range(len(self.files)):
             #print(self.files[q])
             with h5py.File(self.path+'/'+self.files[q],'r') as f:
-                for z in range(self.n_zones):
-                    
+                for z in range(self.total_zones):
                     self.opacity[z,q,:] = np.array(f['zonedata/'+str(z)+'/opacity'])
                     self.Jnu[z,q,:] = np.array(f['zonedata/'+str(z)+'/Jnu'])
                     self.emissivity[z,q,:] = np.array(f['zonedata/'+str(z)+'/emissivity'])
@@ -104,7 +127,7 @@ class PLT:
                         if q == 0 and z == 0 and self.levels_bool:
                             n_levels = len(np.array(f['zonedata/'+str(z)+'/'+ky+'/level_fraction']))
 
-                            self.levels[ky] = np.empty((self.n_zones,len(self.times),n_levels))
+                            self.levels[ky] = np.empty(self.n_zones+(len(self.times),n_levels,))
                         
                             
                         #indices are by zone, by time, then by ion
@@ -144,9 +167,9 @@ class PLT:
                                                                 vmax=1))
         ky = 'Z_'+str(Z)
         if log:
-            currentData = np.log10(self.atoms[ky][:,:,ion])
+            currentData = np.log10(self.atoms[ky][...,ion])
         else:
-            currentData = self.atoms[ky][:,:,ion]
+            currentData = self.atoms[ky][...,ion]
         currentData = np.where(currentData==np.nan,-5,currentData)
         for q in range(len(self.times)):
             plt.scatter(self.times[q]*np.ones(self.n_zones),np.linspace(0,self.n_zones-1,self.n_zones),color=sm.to_rgba(currentData[:,q]),s=s,marker='s')
@@ -234,22 +257,23 @@ class PLT:
             plt.xscale('log')
         plt.tick_params(axis='both', which='major', labelsize=18)
         ky = 'Z_'+str(Z)
-        allTimes = np.ones((self.n_zones,len(self.times)))
-        allZones = np.ones((self.n_zones,len(self.times)))
-        zones = np.linspace(0,self.n_zones-1,self.n_zones)
-        for q in range(len(allTimes)):
-            allTimes[q] = self.times
-        if vel:
-            for q in range(np.shape(allZones)[1]):
-                allZones[:,q] = self.velr/3E10
-        elif radius:
-            allZones = self.r
-        else:
-            for q in range(np.shape(allZones)[1]):
-                allZones[:,q] = zones
+        allTimes = np.ones(self.n_zones+(len(self.times),))
+        allZones = np.ones(self.n_zones+(len(self.times),))
+        zones = np.linspace(0,np.shape(self.n_zones)[0]-1,np.shape(self.n_zones)[0])
+        if self.dim == 1:
+            for q in range(len(allTimes)):
+                allTimes[q,:] = self.times
+            if vel:
+                for q in range(np.shape(allZones)[1]):
+                    allZones[:,q] = self.velr/3E10
+            elif radius:
+                allZones = self.r
+            else:
+                for q in range(np.shape(allZones)[1]):
+                    allZones[:,q] = zones
         colorsSchemes = [plt.cm.Greys,plt.cm.Purples,plt.cm.Blues,plt.cm.Greens,plt.cm.Oranges,plt.cm.Reds,plt.cm.BuPu,plt.cm.GnBu,plt.cm.YlGn,plt.cm.PuRd,plt.cm.Greys,plt.cm.RdPu]
         if fill:
-            allOffs = np.ones((self.n_zones,len(self.times)))
+            allOffs = np.ones(self.n_zones+(len(self.times),))
             dif = 1.1*(self.times[len(self.times)-1]-self.times[len(self.times)-2]) #assumes last time step has achieved maximum
             offset = self.times
             offset = np.insert(offset[:-1],0,0)
@@ -259,13 +283,13 @@ class PLT:
         for i in range(max_ion):
             sm = plt.cm.ScalarMappable(cmap=colorsSchemes[i],norm=plt.Normalize(vmin=0,
                                                                 vmax=1))
-            currentBools = np.where(self.atoms[ky][:,:,i]==np.max(self.atoms[ky],axis=2),True,False)
+            currentBools = np.where(self.atoms[ky][...,i]==np.max(self.atoms[ky],axis=2),True,False)
     #print(np.shape(currentBools))
-            currentData = self.atoms[ky][:,:,i][currentBools].flatten()
+            currentData = self.atoms[ky][...,i][currentBools].flatten()
     #print(np.shape(currentData))
             plt.scatter(allTimes[currentBools],allZones[currentBools].flatten(),color=sm.to_rgba(currentData),s=s,marker='s')
             if fill:
-                plt.scatter((allTimes+allOffs*f)[currentBools&(allOffs>dif)],allZones[currentBools&(allOffs>dif)].flatten(),color=sm.to_rgba(self.atoms[ky][:,:,i][currentBools&(allOffs>dif)].flatten()),s=s,marker='s',zorder=0)
+                plt.scatter((allTimes+allOffs*f)[currentBools&(allOffs>dif)],allZones[currentBools&(allOffs>dif)].flatten(),color=sm.to_rgba(self.atoms[ky][...,i][currentBools&(allOffs>dif)].flatten()),s=s,marker='s',zorder=0)
                 
         for i in range(max_ion):
             sm = plt.cm.ScalarMappable(cmap=colorsSchemes[i],norm=plt.Normalize(vmin=0,
