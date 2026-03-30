@@ -25,6 +25,11 @@ SwiftV = AstroFilter('Swift_UVOT.V.dat',3.69696e-9,5440.57)
 
 Swift = [SwiftUVW2,SwiftUVM2,SwiftUVW1,SwiftU,SwiftB,SwiftV]
 
+GalexNUV = AstroFilter('GALEX_GALEX.NUV.dat',2.05634e-8,2344.90)
+GalexFUV = AstroFilter('GALEX_GALEX.FUV.dat',4.6194e-8,1545.82)
+
+Galex = [GalexNUV,GalexFUV]
+
 
 LSSTu = AstroFilter('LSST_LSST.u.dat',8.03787e-9,3694.25)
 LSSTg = AstroFilter('LSST_LSST.g.dat',4.7597e-9,4840.83)
@@ -105,6 +110,10 @@ colors['U'] = sm.to_rgba(2)
 colors['W1'] = sm.to_rgba(3)
 colors['M2'] = sm.to_rgba(4)
 colors['W2'] = sm.to_rgba(5)
+
+
+colors['NUV'] = 'deeppink'
+colors['FUV'] = 'plum'
 
 to_model = {'u':LSSTu,'g':LSSTg,
             'r':LSSTr,'i':LSSTi,
