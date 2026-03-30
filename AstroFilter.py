@@ -130,7 +130,8 @@ to_model = {'u':LSSTu,'g':LSSTg,
             '2550':JWSTF2550,
             'W2':SwiftUVW2, 'M2':SwiftUVM2,
             'W1':SwiftUVW1, 'U':SwiftU,
-            'V':SwiftV,'B':SwiftB}
+            'V':SwiftV,'B':SwiftB,
+            'FUV':GalexFUV, 'NUV':GalexNUV}
 
 
 def plotFilters(filts,alp=1,factor=1):
