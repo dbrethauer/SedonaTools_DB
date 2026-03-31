@@ -480,11 +480,13 @@ class Model2D(Model):
             else:
                 self.volume[i] = np.pi*((self.rout_x[i])**2-(self.rout_x[i-1])**2)*self.dr_z*np.ones(len(self.volume[i]))
                 
-    def BrokenPowerLaw(self,mass,velocity,n_inner=1,n_outer=10,resetGrid=False,v_min=0,v_max=1,vx0=0,vz0=0):
+    def BrokenPowerLaw(self,mass,velocity,n_inner=1,n_outer=10,resetGrid=False,v_min=0,v_max=1,vx0=0,vz0=0,theta_max=np.pi/2,theta_min=-np.pi/2):
         if n_inner == 3 or n_outer == 3 or n_inner == 5 or n_outer == 5:
             raise Exception("Warning, value of power law index not valid for this formalism!")
             
         v_offset = ((self.vXX-vx0*self.c)**2+(self.vZZ-vz0*self.c)**2)**0.5
+        
+        temp_thetas = np.arctan((self.vZZ-vz0*self.c)/np.abs(self.vXX-vx0*self.c))
         
         
         eta_rho = (4*np.pi*((n_inner-n_outer)/((3-n_inner)*(3-n_outer))))**-1
@@ -501,9 +503,9 @@ class Model2D(Model):
         
         #currentRho = eta_rho*(mass*self.m_sun)/(v_t*self.time)**3*np.where(self.vx<=v_t,((self.vx-self.dv/2)/v_t)**(-1*n_inner),((self.vx-self.dv/2)/v_t)**(-1*n_outer))
         currentRho = eta_rho*(mass*self.m_sun)/(v_t*self.time)**3*np.where(v_offset<=v_t,((v_offset)/v_t)**(-1*n_inner),(v_offset/v_t)**(-1*n_outer))
-        currentRho = np.where((v_offset>v_min*self.c)&(v_offset<v_max*self.c)&(v_offset<f*v_t),currentRho,self.rho_min)
+        currentRho = np.where((v_offset>v_min*self.c)&(v_offset<v_max*self.c)&(v_offset<f*v_t)&(temp_thetas>=theta_min)&(temp_thetas<=theta_max),currentRho,self.rho_min)
 
-        totalMass = np.sum(currentRho*self.volume)
+        totalMass = np.sum(currentRho[(v_offset>v_min*self.c)&(v_offset<v_max*self.c)&(v_offset<f*v_t)&(temp_thetas>=theta_min)&(temp_thetas<=theta_max)]*self.volume[(v_offset>v_min*self.c)&(v_offset<v_max*self.c)&(v_offset<f*v_t)&(temp_thetas>=theta_min)&(temp_thetas<=theta_max)])
 
         currentRho *= (mass*self.m_sun)/totalMass
 
@@ -581,29 +583,33 @@ class Model2D(Model):
         elif q == 1.5:
             return "B"
             
-    def ConstantDensity(self,mass,vmax=0.3,v_cut=0.3,v_min=0,resetGrid=False,vx0=0,vz0=0):
+    def ConstantDensity(self,mass,vmax=0.3,v_cut=0.3,v_min=0,resetGrid=False,vx0=0,vz0=0,theta_max=np.pi/2,theta_min=-np.pi/2):
         
         if resetGrid or not hasattr(self, 'vx') or not hasattr(self, 'vz'):
             self.setGrid(vmax,vmax)
             
         v_offset = ((self.vXX-vx0*self.c)**2+(self.vZZ-vz0*self.c)**2)**0.5
+        
+        temp_thetas = np.arctan((self.vZZ-vz0*self.c)/np.abs(self.vXX-vx0*self.c))
             
-        currentRho = np.where((v_offset<v_cut*self.c)&(v_offset>v_min*self.c),mass*self.m_sun/(4/3*np.pi*self.time*(v_cut-v_min)*self.c)**3*np.ones(np.shape(self.rho)),self.rho_min)
-        totalMass = np.sum(currentRho[(v_offset<v_cut*self.c)&(v_offset>v_min*self.c)]*self.volume[(v_offset<v_cut*self.c)&(v_offset>v_min*self.c)])
-        currentRho[(v_offset<v_cut*self.c)&(v_offset>v_min*self.c)] *= (mass*self.m_sun)/totalMass
+        currentRho = np.where((v_offset<v_cut*self.c)&(v_offset>v_min*self.c)&(temp_thetas>=theta_min)&(temp_thetas<=theta_max),mass*self.m_sun/(4/3*np.pi*self.time*(v_cut-v_min)*self.c)**3*np.ones(np.shape(self.rho)),self.rho_min)
+        totalMass = np.sum(currentRho[(v_offset<v_cut*self.c)&(v_offset>v_min*self.c)&(temp_thetas>=theta_min)&(temp_thetas<=theta_max)]*self.volume[(v_offset<v_cut*self.c)&(v_offset>v_min*self.c)&(temp_thetas>=theta_min)&(temp_thetas<=theta_max)])
+        currentRho[(v_offset<v_cut*self.c)&(v_offset>v_min*self.c)&(temp_thetas>=theta_min)&(temp_thetas<=theta_max)] *= (mass*self.m_sun)/totalMass
         
         return currentRho
         
-    def PowerLaw(self,mass,index=4,vmax=0.3,v_cut=0.3,v_min=1E-1,resetGrid=False,vx0=0,vz0=0):
+    def PowerLaw(self,mass,index=4,vmax=0.3,v_cut=0.3,v_min=1E-1,resetGrid=False,vx0=0,vz0=0,theta_max=np.pi/2,theta_min=-np.pi/2):
         if resetGrid or not hasattr(self, 'vx') or not hasattr(self, 'vz'):
             self.setGrid(vmax,vmax)
         
         v_offset = ((self.vXX-vx0*self.c)**2+(self.vZZ-vz0*self.c)**2)**0.5
         
-        currentRho = np.where((v_offset<v_cut*self.c)&(v_offset>v_min*self.c),(v_offset/v_min/self.c)**(-index),self.rho_min)
+        temp_thetas = np.arctan((self.vZZ-vz0*self.c)/np.abs(self.vXX-vx0*self.c))
         
-        totalMass = np.sum(currentRho[(v_offset<v_cut*self.c)&(v_offset>v_min*self.c)]*self.volume[(v_offset<v_cut*self.c)&(v_offset>v_min*self.c)])
-        currentRho[(v_offset<v_cut*self.c)&(v_offset>v_min*self.c)] *= (mass*self.m_sun)/totalMass
+        currentRho = np.where((v_offset<v_cut*self.c)&(v_offset>v_min*self.c)&(temp_thetas>=theta_min)&(temp_thetas<=theta_max),(v_offset/v_min/self.c)**(-index),self.rho_min)
+        
+        totalMass = np.sum(currentRho[(v_offset<v_cut*self.c)&(v_offset>v_min*self.c)&(temp_thetas>=theta_min)&(temp_thetas<=theta_max)]*self.volume[(v_offset<v_cut*self.c)&(v_offset>v_min*self.c)&(temp_thetas>=theta_min)&(temp_thetas<=theta_max)])
+        currentRho[(v_offset<v_cut*self.c)&(v_offset>v_min*self.c)&(temp_thetas>=theta_min)&(temp_thetas<=theta_max)] *= (mass*self.m_sun)/totalMass
         return currentRho
         
         
