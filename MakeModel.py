@@ -614,7 +614,7 @@ class Model2D(Model):
         
         
                 
-    def plotProp(self,prop1,prop2=None,log1=True,log2=True,label1='Unlabeled',label2='Unlabeled',size=14,mirror=True,forceEqual=False,homologous=True):
+    def plotProp(self,prop1,prop2=None,log1=True,log2=True,label1='Unlabeled',label2='Unlabeled',size=14,mirror=True,forceEqual=False,homologous=True,min1=None,min2=None,max1=None,max2=None):
         currentVariable = prop1
         if log1:
             currentVariable = np.log10(prop1)
@@ -632,9 +632,12 @@ class Model2D(Model):
             Ys = self.rZZ.flatten()
             plt.xlabel('Rx (cm)',fontsize=14)
             plt.ylabel('Rz (cm)',fontsize=14)
-            
-        sm = plt.cm.ScalarMappable(cmap=plt.cm.coolwarm,norm=plt.Normalize(vmin=np.min(currentVariable),
-                                                                   vmax=np.max(currentVariable)))
+        if min1==None:
+            min1 = np.min(currentVariable)
+        if max1==None:
+            max1 = np.max(currentVariable)
+        sm = plt.cm.ScalarMappable(cmap=plt.cm.coolwarm,norm=plt.Normalize(vmin=min1,
+                                                                   vmax=max1))
         colors= sm.to_rgba(currentVariable.flatten())
         
         cbar = plt.colorbar(sm,label=label1)
@@ -647,9 +650,13 @@ class Model2D(Model):
             plt.scatter(-1*Xs,Ys,c=colors,s=size)
         else:
             plt.scatter(Xs,Ys,c=colors,s=size)
+            if min1==None:
+                min2 = np.min(currentVariable2)
+            if max1==None:
+                max2 = np.max(currentVariable2)
 
-            sm = plt.cm.ScalarMappable(cmap=plt.cm.PiYG,norm=plt.Normalize(vmin=np.min(currentVariable2),
-                                                                   vmax=np.max(currentVariable2)))
+            sm = plt.cm.ScalarMappable(cmap=plt.cm.PiYG,norm=plt.Normalize(vmin=min2,
+                                                                   vmax=max2))
             colors= sm.to_rgba(currentVariable2.flatten())
             plt.scatter(-1*Xs,Ys,c=colors,s=size)
 #    plt.colorbar(sm,label=r'log$_{10}$ (X$_{lan}$)',location='left')
