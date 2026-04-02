@@ -10,7 +10,7 @@ from scipy import stats
 import os
 import math
 
-c=3*10**18 #AA/s
+c=2.998*10**18 #AA/s
 D = 39.5*3.086E24
 h = 6.626E-27
 erg_to_eV = 6.242E11
@@ -19,7 +19,7 @@ distance = D
 
 class SedonaModel:
     def __init__(self,filename=None,gamma=False,polarization=False):
-        c = 3E18 ##AA/s
+        c = 2.998E18 ##AA/s
         self.name = filename
         self.file = self.name[self.name.rfind('/')+1:]
         self.curves = {}
@@ -68,7 +68,65 @@ class SedonaModel:
             return (Y+Y_s)/2
         else:
             return Y
-    def getLum(self,time=None,angle=0,angle_ind=None,symmetric=False):
+            
+    def getPolProp(self,prop,time=None,angle=0,angle_ind=None,symmetric=False,nu_min=None,nu_max=None,lam_min=None,lam_max=None):
+        if not hasattr(self, prop):
+            raise Exception("This spectral set does not have polarization!")
+        if nu_min == None and lam_max == None:
+            nu_min = self.freq[0]
+        elif nu_min == None:
+            nu_min = c/lam_max
+        if nu_max == None and lam_min == None:
+            nu_max = self.freq[len(self.freq)-1]
+        elif nu_max == None:
+            nu_max = c/lam_min
+            
+        if angle_ind==None:
+            angle_ind = self.getAngleInd(angle=angle)
+            
+        values = getattr(self, prop)
+        
+        time = np.array(time)
+        timeR = time.reshape(-1,1)
+        diff = np.abs(self.time-timeR).argmin(axis=1)
+        
+        nu_min_ind = np.searchsorted(self.freq,nu_min)
+        nu_max_ind = np.searchsorted(self.freq,nu_max)
+        
+        Y = values[diff,nu_min_ind:nu_max_ind+1,angle_ind]
+        Y_s = values[diff,nu_min_ind:nu_max_ind+1,len(self.mu)-1-angle_ind]
+        
+        if symmetric:
+            Y = (Y+Y_s)/2
+        
+        return integrate.trapezoid(Y,self.freq)
+        
+    
+    
+    def getP(self,time=None,angle=0,angle_ind=None,symmetric=False,nu_min=None,nu_max=None,lam_min=None,lam_max=None):
+        if not hasattr(self, 'Q'):
+            raise Exception("This spectral set does not have polarization!")
+        if nu_min == None and lam_max == None:
+            nu_min = self.freq[0]
+        elif nu_min == None:
+            nu_min = c/lam_max
+        if nu_max == None and lam_min == None:
+            nu_max = self.freq[len(self.freq)-1]
+        elif nu_max == None:
+            nu_max = c/lam_min
+            
+        if angle_ind==None:
+            angle_ind = self.getAngleInd(angle=angle)
+            
+        numeratorQ = self.getPolProp(prop='Q',time=time,angle=angle,angle_ind=angle_ind,symmetric=symmetric,nu_min=nu_min,nu_max=nu_max)
+        numeratorU = self.getPolProp(prop='U',time=time,angle=angle,angle_ind=angle_ind,symmetric=symmetric,nu_min=nu_min,nu_max=nu_max)
+        numeratorV = self.getPolProp(prop='V',time=time,angle=angle,angle_ind=angle_ind,symmetric=symmetric,nu_min=nu_min,nu_max=nu_max)
+        
+        denominator = self.getPseudoLum(time=time,nu_max=nu_max,nu_min=nu_min,angle=angle,angle_ind=angle_ind,symmetric=symmetric)
+        
+        return np.sqrt(numeratorQ**2+numeratorU**2+numeratorV**2)/denominator
+    
+    def getLum(self,time=None,angle=0,angle_ind=None,symmetric=False,nu_min=None,nu_max=None,lam_min=None,lam_max=None):
         if angle_ind==None:
             angle_ind = self.getAngleInd(angle=angle)
         spec = self.getSpec(time=time,mode='nu',angle_ind=angle_ind,symmetric=symmetric)
@@ -94,7 +152,7 @@ class SedonaModel:
             return max(self.curves['Bolometric'+str(costheta)])
         else:
             return max(self.curves['Bolometric'+str(costheta)])
-    def getPseudoLum(self,time,nu_max=(3E18/3000),nu_min=(3E18/25000),angle=0,angle_ind=None,symmetric=False):
+    def getPseudoLum(self,time,nu_max=(2.998E18/3000),nu_min=(2.998E18/25000),angle=0,angle_ind=None,symmetric=False):
         if angle_ind == None:
             angle_ind = self.getAngleInd(angle=angle)
         spec = self.getSpec(time,'nu',angle_ind=angle_ind,symmetric=symmetric)
@@ -102,7 +160,7 @@ class SedonaModel:
         PseudoSpec = spec[...,(self.freq >= nu_min)&(self.freq<=nu_max)]
         PseudoFreq = self.freq[...,(self.freq >= nu_min)&(self.freq<=nu_max)]
         return integrate.trapezoid(PseudoSpec,PseudoFreq)
-    def getPseudoLumCurve(self,nu_max=(3E18/3000),nu_min=(3E18/25000),angle=0,angle_ind=None,symmetric=False):
+    def getPseudoLumCurve(self,nu_max=(2.998E18/3000),nu_min=(2.998E18/25000),angle=0,angle_ind=None,symmetric=False):
         if angle_ind == None:
             angle_ind = self.getAngleInd(angle=angle)
         costheta = self.mu[angle_ind]
@@ -269,6 +327,8 @@ class SedonaModel:
             if self.file in list(f.keys()):
                 for q in list(f[self.file].keys()):
                     self.curves[q] = np.array(f[self.file+'/'+q])
+                    
+
                     
                     
     def plotTimeSeriesSpec(self,t_low=1,t_high=5,spacing=1,angle=90,style='-',mode='lam',symmetric=False,log=False):
