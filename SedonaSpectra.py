@@ -90,20 +90,15 @@ class SedonaModel:
         timeR = time.reshape(-1,1)
         diff = np.abs(self.time-timeR).argmin(axis=1)
         
-        nu_min_ind = np.searchsorted(self.freq,nu_min)
-        nu_max_ind = np.searchsorted(self.freq,nu_max)
-        
-        Y = values[diff,nu_min_ind:nu_max_ind+1,angle_ind]
-        Y_s = values[diff,nu_min_ind:nu_max_ind+1,len(self.mu)-1-angle_ind]
+        Y = values[diff,(self.freq >= nu_min)&(self.freq<=nu_max),angle_ind]
+        Y_s = values[diff,(self.freq >= nu_min)&(self.freq<=nu_max),len(self.mu)-1-angle_ind]
         
         if symmetric:
             Y = (Y+Y_s)/2
         
         return integrate.trapezoid(Y,self.freq)
         
-    
-    
-    def getP(self,time=None,angle=0,angle_ind=None,symmetric=False,nu_min=None,nu_max=None,lam_min=None,lam_max=None):
+    def getPol(self,time=None,angle=0,angle_ind=None,symmetric=False,nu_min=None,nu_max=None,lam_min=None,lam_max=None):
         if not hasattr(self, 'Q'):
             raise Exception("This spectral set does not have polarization!")
         if nu_min == None and lam_max == None:
@@ -125,6 +120,26 @@ class SedonaModel:
         denominator = self.getPseudoLum(time=time,nu_max=nu_max,nu_min=nu_min,angle=angle,angle_ind=angle_ind,symmetric=symmetric)
         
         return np.sqrt(numeratorQ**2+numeratorU**2+numeratorV**2)/denominator
+        
+    def getPolAngle(self,time=None,angle=0,angle_ind=None,symmetric=False,nu_min=None,nu_max=None,lam_min=None,lam_max=None):
+        if not hasattr(self, 'Q'):
+            raise Exception("This spectral set does not have polarization!")
+        if nu_min == None and lam_max == None:
+            nu_min = self.freq[0]
+        elif nu_min == None:
+            nu_min = c/lam_max
+        if nu_max == None and lam_min == None:
+            nu_max = self.freq[len(self.freq)-1]
+        elif nu_max == None:
+            nu_max = c/lam_min
+            
+        if angle_ind==None:
+            angle_ind = self.getAngleInd(angle=angle)
+            
+        numeratorQ = self.getPolProp(prop='Q',time=time,angle=angle,angle_ind=angle_ind,symmetric=symmetric,nu_min=nu_min,nu_max=nu_max)
+        numeratorU = self.getPolProp(prop='U',time=time,angle=angle,angle_ind=angle_ind,symmetric=symmetric,nu_min=nu_min,nu_max=nu_max)
+        
+        return 180+(180/np.pi)*np.arctan(numeratorU/numeratorQ)/2
     
     def getLum(self,time=None,angle=0,angle_ind=None,symmetric=False,nu_min=None,nu_max=None,lam_min=None,lam_max=None):
         if angle_ind==None:
