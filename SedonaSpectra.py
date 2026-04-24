@@ -437,7 +437,7 @@ class SedonaModel:
         ax_time = plt.axes([0.2, 0.1, 0.65, 0.03])
         ax_angle = plt.axes([0.2, 0.05, 0.65, 0.03])
         self.s_time = Slider(ax_time, 'Time (days)', 0, np.max(self.time), valinit=t_init)
-        self.s_angle = Slider(ax_angle, 'Angle (deg)', np.min(self.mu), np.max(self.mu), valinit=ang_init)
+        self.s_angle = Slider(ax_angle, r'cos($\theta$)', -1, 1, valinit=ang_init)
         
         resetax = plt.axes([0.2, 0.15, 0.1, 0.04])
         self.resetButton = Button(resetax, 'Reset', hovercolor='0.975')
@@ -472,8 +472,8 @@ class SedonaModel:
         else:
             new_x = self.freq
             self.ax.set_xlim(np.min(self.freq),np.max(self.freq))
-            
-        new_y = self.getSpec(time=t,mode=self.modeInteractive,angle=ang,symmetric=self.symmetricInteractive)
+        
+        new_y = self.getSpec(time=t,mode=self.modeInteractive,angle=np.arccos(ang)*180/np.pi,symmetric=self.symmetricInteractive)
         
         if self.interactiveFreezeY:
             self.ax.set_ylim(self.interactiveMinY,self.interactiveMaxY)
