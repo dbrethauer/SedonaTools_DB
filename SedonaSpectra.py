@@ -508,16 +508,15 @@ class SedonaModel:
             self.modeInteractive = 'nu'
             #self.modeButton.color = 'lightblue'
             self.modeButton.label.set_text('Freq')
-            self.interactiveFreezeY = False
-            self.symmButton.ax.set_facecolor('red')
-            self.symmButton.label.set_text('Symmetry: OFF')
+            
         else:
             self.modeInteractive = 'lam'
             #self.modeButton.ax.set_facecolor('lightblue')
             self.modeButton.label.set_text('Lambda')
-            self.interactiveFreezeY = False
-            self.symmButton.ax.set_facecolor('red')
-            self.symmButton.label.set_text('Symmetry: OFF')
+ 
+        self.interactiveFreezeY = False
+        self.symmButton.ax.set_facecolor('red')
+        self.symmButton.label.set_text('Symmetry: OFF')
             
         self.updateInteractivePlot(None)
         self.fig.canvas.draw_idle()
