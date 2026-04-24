@@ -411,7 +411,7 @@ class SedonaModel:
             plt.errorbar(Xs,Y,color=sm.to_rgba(np.arccos(self.mu[q])*180/np.pi),label=round(np.arccos(self.mu[q])*180/np.pi,0),linestyle=style)
             
             
-    def plotInteractiveSpec(self):
+    def plotInteractiveSpec(self,logTime=False):
         self.fig, self.ax = plt.subplots(figsize=(12,12))
         plt.subplots_adjust(bottom=0.25)
         
@@ -429,6 +429,7 @@ class SedonaModel:
         
         self.symmetricInteractive = False
         self.modeInteractive = 'lam'
+        self.logTime = logTime
         
         self.interactiveMinY = 0
         self.interactiveMaxY = 1.25*np.max(self.getSpec(time=t_init,angle=ang_init)[0])
@@ -436,7 +437,10 @@ class SedonaModel:
         
         ax_time = plt.axes([0.2, 0.1, 0.65, 0.03])
         ax_angle = plt.axes([0.2, 0.05, 0.65, 0.03])
-        self.s_time = Slider(ax_time, 'Time (days)', 0, np.max(self.time), valinit=t_init)
+        if logTime:
+            self.s_time = Slider(ax_time, r'log$_{10}$ (Time/days)', np.min(np.log10(self.time)), np.max(np.log10(self.time)), valinit=t_init)
+        else:
+            self.s_time = Slider(ax_time, 'Time (days)', 0, np.max(self.time), valinit=t_init)
         self.s_angle = Slider(ax_angle, r'cos($\theta$)', -1, 1, valinit=ang_init)
         
         resetax = plt.axes([0.2, 0.15, 0.1, 0.04])
@@ -464,6 +468,8 @@ class SedonaModel:
         
     def updateInteractivePlot(self,val):
         t = self.s_time.val
+        if self.logTime:
+            t = 10**t
         ang = self.s_angle.val
         
         if self.modeInteractive == 'lam':
