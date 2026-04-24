@@ -11,6 +11,13 @@ import os
 import math
 from matplotlib.widgets import Slider, Button
 
+import sys
+path = '/Users/dbrethauer/KilonovaProject/SedonaCustomTools_DB/'
+if not path in sys.path:
+    sys.path.append(path)
+    
+import AstroFilter as AF
+
 c=2.998*10**18 #AA/s
 D = 39.5*3.086E24
 h = 6.626E-27
@@ -411,21 +418,37 @@ class SedonaModel:
             plt.errorbar(Xs,Y,color=sm.to_rgba(np.arccos(self.mu[q])*180/np.pi),label=round(np.arccos(self.mu[q])*180/np.pi,0),linestyle=style)
             
             
-    def plotInteractiveSpec(self,logTime=False):
-        self.fig, self.ax = plt.subplots(figsize=(12,12))
+    def plotInteractiveSpec(self,logTime=False,filters=None,plotFilters=False):
+        self.fig, self.ax = plt.subplots(2,1,figsize=(12,18))
         plt.subplots_adjust(bottom=0.25)
         
         t_init = 1
-        ang_init = 0
+        ang_init = 90
         
-        self.InteractiveData, = self.ax.plot(self.AA, self.getSpec(time=t_init,angle=ang_init)[0], lw=3, color='blue')
         
-        self.ax.set_xlim(np.min(self.AA),np.max(self.AA))
-        self.ax.set_xscale('log')
+        self.lc_curves = {}
+        for i in range(len(filters)):
+            currentT,currentY = self.time,self.getLightCurve(AF.to_model[filters[i]],angle=ang_init)
+            line, = self.ax[0].plot(currentT, currentY, label=filters[i], color=AF.colors[filters[i]], lw=3)
+            self.lc_curves[filters[i]] = line
+        self.ax[0].set_ylim(-8,-18)
+        self.ax[0].tick_params(axis='both', which='major', labelsize=24,width=3)
         
-        self.ax.set_ylim(0,1.25*np.max(self.getSpec(time=t_init,angle=ang_init)[0]))
+        self.time_marker = self.ax[0].axvline(x=t_init, color='black', linestyle='--', alpha=0.6,lw=3)
         
-        self.ax.tick_params(axis='both', which='major', labelsize=24,width=3)
+        self.InteractiveData, = self.ax[1].plot(self.AA, self.getSpec(time=t_init,angle=ang_init)[0], lw=2, color='blue')
+        
+        self.ax[1].set_xlim(np.min(self.AA),np.max(self.AA))
+        self.ax[1].set_xscale('log')
+        
+        self.ax[1].set_ylim(0,1.25*np.max(self.getSpec(time=t_init,angle=ang_init)[0]))
+        
+        self.ax[1].tick_params(axis='both', which='major', labelsize=24,width=3)
+        
+        self.plotFilters = plotFilters
+        
+        #if self.plotFilters:
+        #    ax
         
         self.symmetricInteractive = False
         self.modeInteractive = 'lam'
@@ -439,9 +462,10 @@ class SedonaModel:
         ax_angle = plt.axes([0.2, 0.05, 0.65, 0.03])
         if logTime:
             self.s_time = Slider(ax_time, r'log$_{10}$ (Time/days)', np.min(np.log10(self.time)), np.max(np.log10(self.time)), valinit=t_init)
+            self.ax[0].set_xscale('log')
         else:
             self.s_time = Slider(ax_time, 'Time (days)', 0, np.max(self.time), valinit=t_init)
-        self.s_angle = Slider(ax_angle, r'cos($\theta$)', -1, 1, valinit=ang_init)
+        self.s_angle = Slider(ax_angle, r'cos($\theta$)', -1, 1, valinit=0)
         
         resetax = plt.axes([0.2, 0.15, 0.1, 0.04])
         self.resetButton = Button(resetax, 'Reset', hovercolor='0.975')
@@ -472,19 +496,25 @@ class SedonaModel:
             t = 10**t
         ang = self.s_angle.val
         
+        self.time_marker.set_xdata([t])
+        
+        for filt, line in self.lc_curves.items():
+            new_lc_y = self.getLightCurve(filt=AF.to_model[filt],angle=np.arcsin(ang)*180/np.pi+90,symmetric=self.symmetricInteractive)
+            line.set_ydata(new_lc_y)
+        
         if self.modeInteractive == 'lam':
             new_x = self.AA
-            self.ax.set_xlim(np.min(self.AA),np.max(self.AA))
+            self.ax[1].set_xlim(np.min(self.AA),np.max(self.AA))
         else:
             new_x = self.freq
-            self.ax.set_xlim(np.min(self.freq),np.max(self.freq))
+            self.ax[1].set_xlim(np.min(self.freq),np.max(self.freq))
         
-        new_y = self.getSpec(time=t,mode=self.modeInteractive,angle=np.arccos(ang)*180/np.pi,symmetric=self.symmetricInteractive)
+        new_y = self.getSpec(time=t,mode=self.modeInteractive,angle=np.arcsin(ang)*180/np.pi+90,symmetric=self.symmetricInteractive)
         
         if self.interactiveFreezeY:
-            self.ax.set_ylim(self.interactiveMinY,self.interactiveMaxY)
+            self.ax[1].set_ylim(self.interactiveMinY,self.interactiveMaxY)
         else:
-            self.ax.set_ylim(0,1.25*np.max(new_y))
+            self.ax[1].set_ylim(0,1.25*np.max(new_y))
         
         self.InteractiveData.set_ydata(new_y)
         self.InteractiveData.set_xdata(new_x)
@@ -531,7 +561,7 @@ class SedonaModel:
         self.interactiveFreezeY = not self.interactiveFreezeY
         
         if self.interactiveFreezeY:
-            self.interactiveMinY, self.interactiveMaxY = self.ax.get_ylim()
+            self.interactiveMinY, self.interactiveMaxY = self.ax[1].get_ylim()
             self.yaxButton.color = 'limegreen'
         else:
             self.yaxButton.color = 'red'
