@@ -9,6 +9,7 @@ from scipy.interpolate import CubicSpline, splrep, BSpline
 from scipy import stats
 import os
 import math
+from matplotlib.widgets import Slider, Button
 
 c=2.998*10**18 #AA/s
 D = 39.5*3.086E24
@@ -408,9 +409,132 @@ class SedonaModel:
         for q in n_mu:
             Y = self.getSpec(time=t_obs,angle=np.arccos(self.mu[q])*180/np.pi,mode=mode,symmetric=symmetric)[0]
             plt.errorbar(Xs,Y,color=sm.to_rgba(np.arccos(self.mu[q])*180/np.pi),label=round(np.arccos(self.mu[q])*180/np.pi,0),linestyle=style)
-
             
+            
+    def plotInteractiveSpec(self):
+        self.fig, self.ax = plt.subplots(figsize=(12,12))
+        plt.subplots_adjust(bottom=0.25)
+        
+        t_init = 1
+        ang_init = 0
+        
+        self.InteractiveData, = self.ax.plot(self.AA, self.getSpec(time=t_init,angle=ang_init)[0], lw=3, color='blue')
+        
+        self.ax.set_xlim(np.min(self.AA),np.max(self.AA))
+        self.ax.set_xscale('log')
+        
+        self.ax.set_ylim(0,1.25*np.max(self.getSpec(time=t_init,angle=ang_init)[0]))
+        
+        self.ax.tick_params(axis='both', which='major', labelsize=24,width=3)
+        
+        self.symmetricInteractive = False
+        self.modeInteractive = 'lam'
+        
+        self.interactiveMinY = 0
+        self.interactiveMaxY = 1.25*np.max(self.getSpec(time=t_init,angle=ang_init)[0])
+        self.interactiveFreezeY = False
+        
+        ax_time = plt.axes([0.2, 0.1, 0.65, 0.03])
+        ax_angle = plt.axes([0.2, 0.05, 0.65, 0.03])
+        self.s_time = Slider(ax_time, 'Time (days)', 0, np.max(self.time), valinit=t_init)
+        self.s_angle = Slider(ax_angle, 'Angle (deg)', np.min(self.mu), np.max(self.mu), valinit=ang_init)
+        
+        resetax = plt.axes([0.2, 0.15, 0.1, 0.04])
+        self.resetButton = Button(resetax, 'Reset', hovercolor='0.975')
+        
+        modeax = plt.axes([0.4,0.15,0.1,0.04])
+        self.modeButton = Button(modeax, 'Lambda', hovercolor='0.975')
+        self.modeButton.color='lightblue'
+        
+        symmax = plt.axes([0.6,0.15,0.1,0.04])
+        self.symmButton = Button(symmax, 'Symmetry: OFF', hovercolor='0.975')
+        self.symmButton.color = 'red'
+        
+        yaxmax = plt.axes([0.8,0.15,0.1,0.04])
+        self.yaxButton = Button(yaxmax, 'Freeze Y-axis', hovercolor='0.975')
+        self.yaxButton.color = 'red'
+        
+        self.s_time.on_changed(self.updateInteractivePlot)
+        self.s_angle.on_changed(self.updateInteractivePlot)
+        
+        self.resetButton.on_clicked(self.resetInteractive)
+        self.symmButton.on_clicked(self.toggleInteractiveSymmetry)
+        self.modeButton.on_clicked(self.toggleInteractiveMode)
+        self.yaxButton.on_clicked(self.toggleInteractiveFreezeY)
+        
+    def updateInteractivePlot(self,val):
+        t = self.s_time.val
+        ang = self.s_angle.val
+        
+        if self.modeInteractive == 'lam':
+            new_x = self.AA
+            self.ax.set_xlim(np.min(self.AA),np.max(self.AA))
+        else:
+            new_x = self.freq
+            self.ax.set_xlim(np.min(self.freq),np.max(self.freq))
+            
+        new_y = self.getSpec(time=t,mode=self.modeInteractive,angle=ang,symmetric=self.symmetricInteractive)
+        
+        if self.interactiveFreezeY:
+            self.ax.set_ylim(self.interactiveMinY,self.interactiveMaxY)
+        else:
+            self.ax.set_ylim(0,1.25*np.max(new_y))
+        
+        self.InteractiveData.set_ydata(new_y)
+        self.InteractiveData.set_xdata(new_x)
+        self.fig.canvas.draw_idle()
+        
+    def resetInteractive(self,event):
+        self.s_time.reset()
+        self.s_angle.reset()
+        
+    def toggleInteractiveSymmetry(self,event):
+        self.symmetricInteractive = not self.symmetricInteractive
+        
+        if self.symmetricInteractive:
+            self.symmButton.ax.set_facecolor('limegreen')
+            self.symmButton.label.set_text('Symmetry: ON')
+            self.symmButton.color = 'limegreen'
+        else:
+            self.symmButton.ax.set_facecolor('red')
+            self.symmButton.label.set_text('Symmetry: OFF')
+            self.symmButton.color = 'red'
+            
+        self.updateInteractivePlot(None)
+        self.fig.canvas.draw_idle()
+        
+    def toggleInteractiveMode(self,event):
+        if self.modeInteractive == 'lam':
+            self.modeInteractive = 'nu'
+            #self.modeButton.color = 'lightblue'
+            self.modeButton.label.set_text('Freq')
+            self.interactiveFreezeY = False
+            self.symmButton.ax.set_facecolor('red')
+            self.symmButton.label.set_text('Symmetry: OFF')
+        else:
+            self.modeInteractive = 'lam'
+            #self.modeButton.ax.set_facecolor('lightblue')
+            self.modeButton.label.set_text('Lambda')
+            self.interactiveFreezeY = False
+            self.symmButton.ax.set_facecolor('red')
+            self.symmButton.label.set_text('Symmetry: OFF')
+            
+        self.updateInteractivePlot(None)
+        self.fig.canvas.draw_idle()
+        
+    def toggleInteractiveFreezeY(self,event):
+        self.interactiveFreezeY = not self.interactiveFreezeY
+        
+        if self.interactiveFreezeY:
+            self.interactiveMinY, self.interactiveMaxY = self.ax.get_ylim()
+            self.yaxButton.color = 'limegreen'
+        else:
+            self.yaxButton.color = 'red'
 
+        self.updateInteractivePlot(None)
+        self.fig.canvas.draw_idle()
+        
+    
         
 class TwoComponent(SedonaModel):
     def __init__(self,SM1,SM2):
