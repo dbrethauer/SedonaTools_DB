@@ -418,8 +418,8 @@ class SedonaModel:
             plt.errorbar(Xs,Y,color=sm.to_rgba(np.arccos(self.mu[q])*180/np.pi),label=round(np.arccos(self.mu[q])*180/np.pi,0),linestyle=style)
             
             
-    def plotInteractiveSpec(self,logTime=False,filters=None,plotFilters=False):
-        self.fig, self.ax = plt.subplots(2,1,figsize=(12,18))
+    def plotInteractiveSpec(self,logTime=False,filters=None,plotFilters=False,figsize=(10,16)):
+        self.fig, self.ax = plt.subplots(2,1,figsize=figsize)
         plt.subplots_adjust(bottom=0.25)
         
         t_init = 1
