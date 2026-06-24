@@ -41,13 +41,16 @@ def runSedona(file):
     command = ["mpiexec","sedona6.ex","kilonova.lua"]
     model_dir = './'+file[:-3]
     environment = os.environ.copy()
-    try:
-        subprocess.run(command,cwd=model_dir,env=environment,check=True)
-        shutil.move(os.path.join(model_dir,'model_spec_final.h5'),os.path.join('FinalSpectra',file[:-3]+'_spec_final.h5'))
-        return True
-    except subprocess.CalledProcessError as e:
-        print(f"CRITICAL ERROR: Sedona failed on {file} with exit code {e.returncode}")
-        return False
+
+    log_path = os.path.join(model_dir, file[:-3]+"_output.txt")
+    with open(log_path, "w") as log_file:
+        try:
+            subprocess.run(command,cwd=model_dir,env=environment,check=True,stdout=log_file,stderr=log_file)
+            shutil.move(os.path.join(model_dir,'model_spec_final.h5'),os.path.join('FinalSpectra',file[:-3]+'_spec_final.h5'))
+            return True
+        except subprocess.CalledProcessError as e:
+            print(f"CRITICAL ERROR: Sedona failed on {file} with exit code {e.returncode}")
+            return False
         
     
    
