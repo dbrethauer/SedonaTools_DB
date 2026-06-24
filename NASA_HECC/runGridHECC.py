@@ -38,11 +38,12 @@ def runSedona(file):
     model_dir = './'+file[:-3]
     environment = os.environ.copy()
     try:
-        subprocesses.run(command,cwd=model_dir,env=environment,check=True)
+        subprocess.run(command,cwd=model_dir,env=environment,check=True)
+        shutil.move(os.path.join(model_dir,'model_spec_final.h5'),os.path.join('FinalSpectra',file[:-3]+'_spec_final.h5'))
     except subprocess.CalledProcessError as e:
         print(f"CRITICAL ERROR: Sedona failed on {file} with exit code {e.returncode}")
         
-    shutil.move(os.path.join(model_dir,'model_spec_final.h5'),os.path.join('FinalSpectra',file[:-3]+'_spec_final.h5'))
+    
    
 def changeLua(file):
     mode = None
