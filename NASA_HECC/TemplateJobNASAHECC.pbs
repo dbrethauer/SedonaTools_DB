@@ -25,5 +25,5 @@ export OMP_NUM_THREADS=128
 export OMP_PLACES=cores
 export OMP_PROC_BIND=spread
 
-# Launch using HECC's MPI launcher (mpiexec)
-mpiexec ./your_executable > live_output.out 2>&1
+# Run the python grid
+python runGridHECC.py
