@@ -5,6 +5,13 @@
 #PBS -N sedona_job
 #PBS -j oe
 
+
+# Make sure that you are requeting the correct number of cores for your machine!
+# https://www.nas.nasa.gov/hecc/support/kb/pbs-resource-request-examples_188.html - Aitken
+# https://www.nas.nasa.gov/hecc/resources/athena.html - Athena
+# https://hec.nasa.gov/user/policies/sbus.html - SBU info with cores
+
+
 source $HOME/.profile
 source $HOME/.zshrc
 
