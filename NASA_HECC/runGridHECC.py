@@ -3,10 +3,11 @@ import shutil
 import subprocess
 import numpy as np
 
-def setup(path,cleanup=False,coreSpec=False):
+def setup(path,cleanup=False,coreSpec=False,n_model_lim=256):
     if not path.endswith('/'):
         path += '/'
     files = os.listdir(path)
+    completed_models = 0
     if not os.path.exists('./FinalSpectra'):
         os.mkdir('./FinalSpectra')
     for file in files:
@@ -28,10 +29,13 @@ def setup(path,cleanup=False,coreSpec=False):
                     shutil.copy("./kilonova.lua", os.path.join(model_dir,'kilonova.lua'))
                 if coreSpec:
                     shutil.copy(f'{path}{name}_corespec.txt',os.path.join(model_dir,'corespec.txt'))
-                runSedona(file)
+                if runSedona(file):
+                    completed_models += 1
                 if cleanup == True:
                     os.system("rm ./"+name+"/model_spec*")
                     os.system("rm ./"+name+"/plt*")
+                if completed_models >= n_model_lim:
+                    break
 
 def runSedona(file):
     command = ["mpiexec","sedona6.ex","kilonova.lua"]
@@ -40,8 +44,10 @@ def runSedona(file):
     try:
         subprocess.run(command,cwd=model_dir,env=environment,check=True)
         shutil.move(os.path.join(model_dir,'model_spec_final.h5'),os.path.join('FinalSpectra',file[:-3]+'_spec_final.h5'))
+        return True
     except subprocess.CalledProcessError as e:
         print(f"CRITICAL ERROR: Sedona failed on {file} with exit code {e.returncode}")
+        return False
         
     
    
