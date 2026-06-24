@@ -20,14 +20,14 @@ def setup(path,cleanup=False,coreSpec=False):
             else:
                 if not os.path.exists(model_dir):
                     os.mkdir(model_dir)
-                shutil.copy(os.path.join(path,file),os.path.join(model_dir, "model.h5")
+                shutil.copy(os.path.join(path,file),os.path.join(model_dir, "model.h5"))
                 
                 if 'Magnetar' in file or 'Accretion' in file:
                     changeLua(file)
                 else:
-                    shutil.copy("./kilonova.lua", os.path.join(model_dir,'kilonova.lua')
+                    shutil.copy("./kilonova.lua", os.path.join(model_dir,'kilonova.lua'))
                 if coreSpec:
-                    shutil.copy(f'{path}{name}_corespec.txt',os.path.join(model_dir,'corespec.txt')
+                    shutil.copy(f'{path}{name}_corespec.txt',os.path.join(model_dir,'corespec.txt'))
                 runSedona(file)
                 if cleanup == True:
                     os.system("rm ./"+name+"/model_spec*")
