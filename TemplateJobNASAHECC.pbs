@@ -1,0 +1,22 @@
+#!/bin/zsh
+#PBS -lselect=1:ncpus=256:mpiprocs=2:model=ath_9745
+#PBS -lwalltime=04:00:00
+#PBS -q normal
+#PBS -N sedona_job
+#PBS -j oe
+
+source $HOME/.profile
+source $HOME/.zshrc
+
+loadSedona
+export OMP_NUM_THREADS=128
+
+cd $PBS_O_WORKDIR
+
+# 2 sockets per node means 128 threads per MPI process
+export OMP_NUM_THREADS=128
+export OMP_PLACES=cores
+export OMP_PROC_BIND=spread
+
+# Launch using HECC's MPI launcher (mpiexec)
+mpiexec ./your_executable > live_output.out 2>&1
