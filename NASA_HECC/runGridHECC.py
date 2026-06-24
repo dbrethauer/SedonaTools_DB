@@ -3,7 +3,7 @@ import shutil
 import subprocess
 import numpy as np
 
-def setup(path,cleanup=False,coreSpec=False,OMP_THREADS=32,use_parallel=False,n_par=4):
+def setup(path,cleanup=False,coreSpec=False):
     if not path.endswith('/'):
         path += '/'
     files = os.listdir(path)
