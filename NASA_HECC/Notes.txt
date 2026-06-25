@@ -4,6 +4,8 @@ Kiran used spread in the Perlmutter. Trying to figure out what combination works
  - Tried spread on Roman: Was ~33% slower than Monk when calculating temperature/opacity adn threads were saturated, 16 nodes and 8 nodes
  - Currently trying close on Roman and a smaller number of cores, perhaps that will reduce latency?
 
+My code was compiled in the PFEs, which contains Aitken, Electra, and Endeavor. If I run on Milan which is on an AFE, could that result in a delay/make my jobs take longer?
+
 
 Number of cores per node on a machine:
  - Broadwell Electra: bro_ele, 28 cores per node
