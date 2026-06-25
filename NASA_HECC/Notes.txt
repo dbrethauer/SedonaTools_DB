@@ -1,0 +1,5 @@
+export OMP_PROC_BIND=spread vs export OMP_PROC_BIND=close:
+Kiran used spread in the Perlmutter. Trying to figure out what combination works best on which machines:
+ - Tried spread on Broadwell: Was ~50% faster than Monk when calculating temperature/opacity and threads were saturated (more threads than zones), 5 nodes
+ - Tried spread on Roman: Was ~33% slower than Monk when calculating temperature/opacity adn threads were saturated, 16 nodes and 8 nodes
+ - Currently trying close on Roman
