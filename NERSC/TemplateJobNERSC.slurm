@@ -57,5 +57,7 @@ export OMP_PROC_BIND=spread
 export SEDONA_EXEC=<INSERT_EXEC_PATH>
 export INPUTS_FILE=<INSERT_INPUTS_PATH>
 
-srun -n $((SLURM_NTASKS_PER_NODE * SLURM_NNODES)) -c ${SLURM_CPUS_PER_TASK} --cpu-bind=cores  ${SEDONA_EXEC} ${INPUTS_FILE}
+python runGridNERSC.py
+
+# srun -n $((SLURM_NTASKS_PER_NODE * SLURM_NNODES)) -c ${SLURM_CPUS_PER_TASK} --cpu-bind=cores  ${SEDONA_EXEC} ${INPUTS_FILE}
 
