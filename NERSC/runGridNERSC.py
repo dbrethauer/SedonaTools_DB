@@ -1,36 +1,56 @@
 import os
+import shutil
+import subprocess
 import numpy as np
 
-def setup(path,cleanup=False,coreSpec=False,OMP_THREADS=32,use_parallel=False,n_par=4):
+def setup(path,cleanup=False,coreSpec=False,n_model_lim=256):
+    if not path.endswith('/'):
+        path += '/'
     files = os.listdir(path)
-    if os.path.exists('./FinalSpectra') == False:
+    completed_models = 0
+    if not os.path.exists('./FinalSpectra'):
         os.mkdir('./FinalSpectra')
     for file in files:
-        if file[-2:].strip()=='h5':
+        if file.strip().endswith('h5'):
             #print(file)
-            if os.path.exists("./FinalSpectra/"+file[:-3]+"_spec_final.h5"):
+            name = file[:-3]
+            model_dir = './'+name
+            if os.path.exists("./FinalSpectra/"+name+"_spec_final.h5"):
                 print('Already completed spectra for file: ' + file + '; moving on.')
+                continue
             else:
-                if os.path.exists("./"+file[:-3]) == False:
-                    os.mkdir("./"+file[:-3])
-                os.system("cp "+path + file + " " + "./"+file[:-3]+"/model.h5")
+                if not os.path.exists(model_dir):
+                    os.mkdir(model_dir)
+                shutil.copy(os.path.join(path,file),os.path.join(model_dir, "model.h5"))
+                
                 if 'Magnetar' in file or 'Accretion' in file:
                     changeLua(file)
                 else:
-                    os.system("cp ./kilonova.lua " + "./"+file[:-3]+"/kilonova.lua")
+                    shutil.copy("./kilonova.lua", os.path.join(model_dir,'kilonova.lua'))
                 if coreSpec:
-                    os.system("cp "+path + file[:-3] + "_corespec.txt " + "./"+file[:-3]+"/corespec.txt")
-                runSedona(file,OMP_THREADS=OMP_THREADS,use_parallel=use_parallel,n_par=n_par)
+                    shutil.copy(f'{path}{name}_corespec.txt',os.path.join(model_dir,'corespec.txt'))
+                if runSedona(file):
+                    completed_models += 1
                 if cleanup == True:
-                    os.system("rm ./"+file[:-3]+"/model_spec*")
-                    os.system("rm ./"+file[:-3]+"/plt*")
+                    os.system("rm ./"+name+"/model_spec*")
+                    os.system("rm ./"+name+"/plt*")
+                if completed_models >= n_model_lim:
+                    break
 
-def runSedona(file,OMP_THREADS=32,use_parallel=False,n_par=4):
-   if use_parallel:
-       os.system("cd ./" + file[:-3] + "; export OMP_NUM_THREADS="+str(OMP_THREADS)+"; mpirun -n " + str(n_par) + " sedona6.ex kilonova.lua; cd ./..")
-   else:
-       os.system("cd ./" + file[:-3] + "; sedona6.ex kilonova.lua; cd ./..")
-   os.system("mv ./" + file[:-3] + "/model_spec_final.h5 ./FinalSpectra/"+file[:-3]+"_spec_final.h5")
+def runSedona(file):
+    command = ["srun","sedona6.ex","kilonova.lua"]
+    model_dir = './'+file[:-3]
+    environment = os.environ.copy()
+
+    log_path = os.path.join(model_dir, file[:-3]+"_output.txt")
+    with open(log_path, "w") as log_file:
+        try:
+            subprocess.run(command,cwd=model_dir,env=environment,check=True,stdout=log_file,stderr=log_file)
+            shutil.move(os.path.join(model_dir,'model_spec_final.h5'),os.path.join('FinalSpectra',file[:-3]+'_spec_final.h5'))
+            return True
+        except subprocess.CalledProcessError as e:
+            print(f"CRITICAL ERROR: Sedona failed on {file} with exit code {e.returncode}")
+            return False
    
 def changeLua(file):
     mode = None
@@ -65,6 +85,15 @@ def changeLua(file):
  
             newText = fullText.replace(oldLine,newFunction)
         fout.write(newText)
+        
+
+#setup("/home/dbrethauer/kn_project/grid/grid_practice/models/",cleanup=False)
+#changeLua('Magnetar_1.0E+49Erot_5.0E-01t0_3E-2M_0.1v_1D.h5')
+
+        
+    
+   
+
         
 
 #setup("/home/dbrethauer/kn_project/grid/grid_practice/models/",cleanup=False)
