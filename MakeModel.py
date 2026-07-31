@@ -140,7 +140,31 @@ class Model:
     def getNeutronComp(self):
         neutrons = np.zeros(len(self.Z))
         neutrons[np.searchsorted(self.Z,0)] = 1.0
+      
         return neutrons
+        
+    def setNeutronComp(self,Xn=1,Xs=None):
+        neutrons = self.getNeutronComp()
+        if np.shape(Xn) == np.shape(self.rho):
+            AllXns = Xn
+        elif type(Xn) == float or float(Xn) == int(Xn):
+            AllXns = Xn*np.ones(np.shape(self.rho))
+        else:
+            raise Exception("Incompatible Xn input")
+            
+        if AllXns.any() > 1:
+            raise Exception("Seems like your Xn is greater than 1 in some places")
+            
+        newComp = np.zeros(np.shape(self.comp))
+        newComp[...,np.searchsorted(self.Z,0)] = AllXns
+        
+        coeffs = (1-AllXns)*np.ones(np.shape(self.rho))
+        
+        newComp[...,np.searchsorted(self.Z,0)+1:] = coeffs[...,np.newaxis]*Xs[np.newaxis,np.searchsorted(self.Z,0)+1:]
+        
+        self.comp = newComp
+        
+        
         
     def addHeat(self,lum_func,location='center',kappa=10,**kwargs): #currently assumes 100% thermalization
         times = np.logspace(0,np.log10(self.time),1000)
@@ -180,6 +204,12 @@ class Model:
         mp = 1.6726E-24
         
         deltaN = self.comp[...,N_ind]*2**(-self.time/t_half_f) -self.comp[...,N_ind]
+        
+        #formal solution at some point:
+        # epsilon_dot = epsilon_dot_neutron - epsilon/t <--- expansion term
+        #solution -> epsilon = C/t - X_n*A*t_half_f*np.exp(-t/t_half_f)-(X_n*A*t_half_f**2*np.exp(-t/t_half_f)/t
+        #C = found by setting epsilon(0) = 0 since no decays have occurred. Thus, C = X_n*A*t_half_f**2
+        #epsilon = X_n*A*t_half_f**2/t- X_n*A*t_half_f*np.exp(-t/t_half_f)-(X_n*A*t_half_f**2*np.exp(-t/t_half_f)/t
         
         self.comp[...,N_ind] += deltaN
         self.comp[...,H_ind] -= deltaN
@@ -405,6 +435,8 @@ class Model2D(Model):
         
         self.volume = np.zeros((n_zone,n_z))
         
+        self.grey_opacity = np.zeros((n_zone,n_z))
+        
         self.TwoD_eta_v = {"H":1.028850, "P":1.079134,"B":0.986012,"T":1}
         self.TwoD_eta_rho = {"H":5.367093, "P":0.183475,"B":0.0222324,"T":0.810569}
         
@@ -614,7 +646,7 @@ class Model2D(Model):
         
         
                 
-    def plotProp(self,prop1,prop2=None,log1=True,log2=True,label1='Unlabeled',label2='Unlabeled',size=14,mirror=True,forceEqual=False,homologous=True,min1=None,min2=None,max1=None,max2=None):
+    def plotProp(self,prop1,prop2=None,log1=True,log2=True,label1='Unlabeled',label2='Unlabeled',size=14,mirror=True,forceEqual=False,homologous=True,min1=None,min2=None,max1=None,max2=None,plotNegative=True):
         currentVariable = prop1
         if log1:
             currentVariable = np.log10(prop1)
@@ -647,7 +679,8 @@ class Model2D(Model):
 
         if mirror:
             plt.scatter(Xs,Ys,c=colors,s=size)
-            plt.scatter(-1*Xs,Ys,c=colors,s=size)
+            if plotNegative:
+                plt.scatter(-1*Xs,Ys,c=colors,s=size)
         else:
             plt.scatter(Xs,Ys,c=colors,s=size)
             if min1==None:
@@ -658,22 +691,29 @@ class Model2D(Model):
             sm = plt.cm.ScalarMappable(cmap=plt.cm.PiYG,norm=plt.Normalize(vmin=min2,
                                                                    vmax=max2))
             colors= sm.to_rgba(currentVariable2.flatten())
-            plt.scatter(-1*Xs,Ys,c=colors,s=size)
+            if plotNegative:
+                plt.scatter(-1*Xs,Ys,c=colors,s=size)
 #    plt.colorbar(sm,label=r'log$_{10}$ (X$_{lan}$)',location='left')
-            cbar = plt.colorbar(sm,label=label2,location='left',pad=0.1)
+                cbar = plt.colorbar(sm,label=label2,location='left',pad=0.1)
 
-            cbar.ax.tick_params(labelsize=18)
-            cbar.set_label(label2,fontsize=18)
+                cbar.ax.tick_params(labelsize=18)
+                cbar.set_label(label2,fontsize=18)
 
         plt.tick_params(axis='both', which='major', labelsize=18)
 
         plt.ylim(-1*max(Ys),max(Ys))
-        plt.xlim(-1*max(Xs),max(Xs))
+        if plotNegative:
+            plt.xlim(-1*max(Xs),max(Xs))
+        else:
+            plt.xlim(0,max(Xs))
 
         if forceEqual:
             grande = max(np.max(Ys),np.max(Xs))
             plt.ylim(-1*grande,grande)
-            plt.xlim(-1*grande,grande)
+            if plotNegative:
+                plt.xlim(-1*grande,grande)
+            else:
+                plt.xlim(0,grande)
             
     def GaussXlan(self,X0=None,X1=None,sig=None):
         if X0<=X1:
@@ -725,6 +765,9 @@ class Model2D(Model):
         fout.create_dataset('erad',data=self.erad,dtype='d')
         fout.create_dataset('x_out',data=self.rout_x,dtype='d')
         fout.create_dataset('z_out',data=self.rout_z,dtype='d')
+        
+        if (self.grey_opacity != np.zeros(np.shape(self.rho))).all():
+            fout.create_dataset('grey_opacity',data=self.grey_opacity,dtype='d')
 
 
 class CoreSpectrum:
