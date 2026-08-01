@@ -2,6 +2,7 @@ import os
 import shutil
 import subprocess
 import numpy as np
+import sys
 
 def setup(path,cleanup=False,coreSpec=False,n_model_lim=256):
     if not path.endswith('/'):
@@ -88,6 +89,11 @@ def changeLua(file):
             newText = fullText.replace(oldLine,newFunction)
         fout.write(newText)
         
+if len(sys.argv) > 1:
+    target_dir = sys.argv[1]
+else:
+    raise ValueError("Need to provide a target directory!")
 
-#setup("/home/dbrethauer/kn_project/grid/grid_practice/models/",cleanup=False)
-#changeLua('Magnetar_1.0E+49Erot_5.0E-01t0_3E-2M_0.1v_1D.h5')
+
+#setup(target_dir,cleanup=False)
+
