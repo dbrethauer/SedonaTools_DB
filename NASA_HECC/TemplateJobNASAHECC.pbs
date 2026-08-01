@@ -26,4 +26,4 @@ export OMP_PROC_BIND=spread
 export OMP_THREAD_LIMIT=128
 
 # Run the python grid
-python runGridHECC.py
+python runGridHECC.py "$TARGET_DIR"
