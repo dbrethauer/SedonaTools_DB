@@ -4,7 +4,7 @@ Kiran used spread in the Perlmutter. Trying to figure out what combination works
  - Tried spread on Roman: Was ~33% slower than Monk when calculating temperature/opacity adn threads were saturated, 16 nodes
  - Tried close on Roman: No difference between close and spread on time it takes to do calculations on opacity/temperature, 4 nodes
 
-Using nested parallelization, setiing OMP_PROC_BIND=close did speed things up on Roman Aitken.
+Using nested parallelization, setiing OMP_PROC_BIND=close did speed things up on Roman Aitken and Broadwell!
 Appears to have highest speed when using one rank per node, so far true for both Broadwell and Roman Aitken
 
 My code was compiled in the PFEs, which contains Aitken, Electra, and Endeavor. If I run on Milan which is on an AFE, could that result in a delay/make my jobs take longer?
