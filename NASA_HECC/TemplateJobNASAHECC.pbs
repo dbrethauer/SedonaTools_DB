@@ -22,7 +22,7 @@ cd $PBS_O_WORKDIR
 # 2 sockets per node means 128 threads per MPI process
 export OMP_NUM_THREADS=128
 export OMP_PLACES=cores
-export OMP_PROC_BIND=spread
+export OMP_PROC_BIND=close
 export OMP_THREAD_LIMIT=128
 
 # Run the python grid
