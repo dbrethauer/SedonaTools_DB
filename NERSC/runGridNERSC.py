@@ -2,6 +2,7 @@ import os
 import shutil
 import subprocess
 import numpy as np
+import sys
 
 def setup(path,cleanup=False,coreSpec=False,n_model_lim=256):
     if not path.endswith('/'):
@@ -85,6 +86,14 @@ def changeLua(file):
  
             newText = fullText.replace(oldLine,newFunction)
         fout.write(newText)
+
+if len(sys.argv) > 1:
+    target_dir = sys.argv[1]
+else:
+    raise ValueError("Need to provide a target directory!")
+
+
+setup(target_dir,cleanup=False)
         
 
 #setup("/home/dbrethauer/kn_project/grid/grid_practice/models/",cleanup=False)
