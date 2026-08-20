@@ -22,10 +22,10 @@ cd $PBS_O_WORKDIR
 # 2 sockets per node means 128 threads per MPI process
 export OMP_NUM_THREADS=128
 export OMP_PLACES=cores
-export OMP_PROC_BIND=close
+#export OMP_PROC_BIND=close
 export OMP_THREAD_LIMIT=128
 
-
+#This is for if there are more threads than zones
 export OMP_PROC_BIND=spread,close
 export OMP_MAX_ACTIVE_LEVELS=2
 
