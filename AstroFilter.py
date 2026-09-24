@@ -30,6 +30,11 @@ GalexFUV = AstroFilter('GALEX_GALEX.FUV.dat',4.6194e-8,1545.82)
 
 Galex = [GalexNUV,GalexFUV]
 
+UVEXNUV = AstroFilter('UVEX_UVEX.NUV.dat',2.0129e-8,2323.93)
+UVEXFUV = AstroFilter('UVEX_UVEX.FUV.dat',4.1375e-8,1620.95)
+
+UVEX = [UVEXNUV,UVEXFUV]
+
 
 LSSTu = AstroFilter('LSST_LSST.u.dat',8.03787e-9,3694.25)
 LSSTg = AstroFilter('LSST_LSST.g.dat',4.7597e-9,4840.83)
@@ -82,9 +87,10 @@ colors['070'] = sm.to_rgba(0)
 colors['090'] = sm.to_rgba(1)
 colors['115'] = sm.to_rgba(2)
 colors['150'] = sm.to_rgba(3)
-colors['277'] = sm.to_rgba(4)
-colors['356'] = sm.to_rgba(5)
-colors['444'] = sm.to_rgba(6)
+colors['200'] = sm.to_rgba(4)
+colors['277'] = sm.to_rgba(5)
+colors['356'] = sm.to_rgba(6)
+colors['444'] = sm.to_rgba(7)
 
 sm = plt.cm.ScalarMappable(cmap=plt.cm.winter_r,
                                     norm=plt.Normalize(vmin=0,
@@ -121,20 +127,30 @@ to_model = {'u':LSSTu,'g':LSSTg,
             'J':MASSJ,'H':MASSH,
             'Ks':MASSKs,'070':JWSTF070,
             '090':JWSTF090,'115':JWSTF115,
-            '150':JWSTF150,'277':JWSTF277,
-            '356':JWSTF356,'444':JWSTF444,
-            '560':JWSTF560,'770':JWSTF770,
-            '1000':JWSTF1000,'1130':JWSTF1130,
-            '1280':JWSTF1280,'1500':JWSTF1500,
-            '1800':JWSTF1800,'2100':JWSTF2100,
-            '2550':JWSTF2550,
+            '150':JWSTF150, '200':JWSTF200,
+            '277':JWSTF277,'356':JWSTF356,
+            '444':JWSTF444,'560':JWSTF560,
+            '770':JWSTF770,'1000':JWSTF1000,
+            '1130':JWSTF1130,'1280':JWSTF1280,
+            '1500':JWSTF1500,'1800':JWSTF1800,
+            '2100':JWSTF2100,'2550':JWSTF2550,
             'W2':SwiftUVW2, 'M2':SwiftUVM2,
             'W1':SwiftUVW1, 'U':SwiftU,
             'V':SwiftV,'B':SwiftB,
-            'FUV':GalexFUV, 'NUV':GalexNUV}
+            'FUV':UVEXFUV, 'NUV':UVEXNUV}
+            
+to_string = {s: f for f, s in to_model.items()}
 
 
 def plotFilters(filts,alp=1,factor=1):
     for i in range(len(filts)):
-        current = to_model[filts[i]]
-        plt.errorbar(current.AA,current.Trans*factor,c=colors[filts[i]],alpha=alp)
+        if isinstance(filts[i], AstroFilter):
+            current = filts[i]
+
+            plt.errorbar(current.AA,current.Trans*factor,c=colors[to_string[filts[i]]],alpha=alp)
+        else:
+
+            current = to_model[filts[i]]
+            plt.errorbar(current.AA,current.Trans*factor,c=colors[filts[i]],alpha=alp)
+            
+        
