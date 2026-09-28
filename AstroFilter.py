@@ -1,9 +1,11 @@
 import numpy as np
 import matplotlib.pyplot as plt
 
+root = '/Users/dbrethauer/KilonovaProject/SedonaCustomTools_DB/Filters/'
+
 class AstroFilter:
     def __init__(self,filename,mag_0,center,counter='photon'):
-        self.full = np.genfromtxt('./../Filters/'+filename, names=['AA','transmission'])
+        self.full = np.genfromtxt(root+filename, names=['AA','transmission'])
         self.AA = self.full['AA']
         self.Trans = self.full['transmission']
         self.zeroPoint = mag_0 #units of erg/s/cm^2/AA
