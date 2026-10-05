@@ -1,8 +1,7 @@
 #!/bin/zsh
-#PBS -lselect=1:ncpus=256:mpiprocs=2:model=ath_9745
-#PBS -lwalltime=04:00:00
-#PBS -q normal
-#PBS -N sedona_job
+#PBS -lselect=18:ncpus=28:mpiprocs=1:model=bro_ele
+#PBS -lwalltime=100:00:00
+#PBS -q long
 #PBS -j oe
 
 
@@ -19,13 +18,9 @@ loadSedona
 
 cd $PBS_O_WORKDIR
 
-# 2 sockets per node means 128 threads per MPI process
-export OMP_NUM_THREADS=128
+export OMP_NUM_THREADS=28
+export OMP_THREAD_LIMIT=28
 export OMP_PLACES=cores
-#export OMP_PROC_BIND=close
-export OMP_THREAD_LIMIT=128
-
-#This is for if there are more threads than zones
 export OMP_PROC_BIND=spread,close
 export OMP_MAX_ACTIVE_LEVELS=2
 
